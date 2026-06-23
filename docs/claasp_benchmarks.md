@@ -1,9 +1,9 @@
 # CLAASP Solver Benchmark Harness
 
-This subtree is a manifest-driven benchmark harness for CLAASP solver
-experiments. Each benchmark is classified by the challenge taxonomy from the
-HTP workshop slide "Why Defining Challenges Is Difficult": goal, primitive
-family, analysis type, model family, difficulty, I/O mode, and model mode.
+This repository is a manifest-driven benchmark harness for CLAASP solver
+experiments. Each benchmark is classified by a challenge taxonomy covering
+goal, primitive family, analysis type, model family, difficulty, I/O mode, and
+model mode.
 
 ## Commands
 

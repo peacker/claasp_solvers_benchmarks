@@ -30,7 +30,7 @@ class ClaaspBenchTests(unittest.TestCase):
         self.assertIn("differential", analyses)
         self.assertIn("linear", analyses)
 
-    def test_taxonomy_contains_slide_dimensions(self) -> None:
+    def test_taxonomy_contains_expected_dimensions(self) -> None:
         self.assertEqual(len(TAXONOMY["goal"]), 6)
         self.assertEqual(len(TAXONOMY["primitive_family"]), 6)
         self.assertEqual(len(TAXONOMY["analysis"]), 6)
