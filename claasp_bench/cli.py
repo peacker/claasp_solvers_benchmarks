@@ -25,7 +25,11 @@ def _cmd_run(args: argparse.Namespace) -> int:
     selected_runner = runner_for(args.runner)
     records = []
     for benchmark in benchmarks:
-        records.append(selected_runner.run(benchmark, output_dir))
+        result = selected_runner.run(benchmark, output_dir)
+        if isinstance(result, list):
+            records.extend(result)
+        else:
+            records.append(result)
     append_jsonl(output_dir / "results.jsonl", records)
     write_json(output_dir / "summary.json", summarize(records))
     print(f"Wrote {len(records)} result(s) to {output_dir}")

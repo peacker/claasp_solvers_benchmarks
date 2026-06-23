@@ -24,6 +24,10 @@ HTML = """<!doctype html>
   </header>
   <main>
     <section id="filters" aria-label="Benchmark filters"></section>
+    <section>
+      <h2>Columns</h2>
+      <div id="column-controls" class="column-controls" aria-label="Column controls"></div>
+    </section>
     <section class="summary">
       <div><strong id="count">0</strong><span>runs</span></div>
       <div><strong id="best">-</strong><span>best time</span></div>
@@ -31,13 +35,22 @@ HTML = """<!doctype html>
       <div><strong id="statuses">-</strong><span>statuses</span></div>
     </section>
     <section>
-      <table>
+      <h2>Benchmark Summary</h2>
+      <table id="summary-table">
         <thead>
           <tr>
-            <th>Benchmark</th><th>Primitive</th><th>Cipher Parameters</th><th>Architecture</th>
-            <th>Goal</th><th>Analysis</th><th>Model</th><th>Solver</th><th>Status</th>
-            <th>Build</th><th>Solve</th><th>Wall</th><th>Memory</th><th>Model Size</th><th>CLAASP Output</th><th>Solver Output</th>
+            <th>Instance</th><th>Runs</th><th>Solvers</th><th>Statuses</th><th>Best Wall</th><th>Median Wall</th>
           </tr>
+        </thead>
+        <tbody id="summary-rows"></tbody>
+      </table>
+    </section>
+    <section>
+      <h2>Runs</h2>
+      <table id="runs-table">
+        <colgroup id="runs-colgroup"></colgroup>
+        <thead>
+          <tr id="runs-header"></tr>
         </thead>
         <tbody id="rows"></tbody>
       </table>
@@ -67,6 +80,10 @@ h1 {
   margin: 0 0 8px;
   font-size: 28px;
 }
+h2 {
+  margin: 18px 0 10px;
+  font-size: 18px;
+}
 p {
   margin: 0;
   color: #57606f;
@@ -82,6 +99,18 @@ label {
   gap: 6px;
   font-size: 13px;
   font-weight: 600;
+}
+.column-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin-bottom: 10px;
+}
+.column-controls label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
 }
 select {
   min-height: 36px;
@@ -114,28 +143,65 @@ section {
 }
 table {
   width: 100%;
+  table-layout: fixed;
   border-collapse: collapse;
   background: #ffffff;
   border: 1px solid #dfe4ea;
-  min-width: 1480px;
 }
 th, td {
   padding: 9px 10px;
   border-bottom: 1px solid #edf0f2;
   text-align: left;
   font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: top;
 }
 th {
   background: #f1f3f5;
   position: sticky;
   top: 0;
+  white-space: nowrap;
+}
+.resizable-th {
+  position: relative;
+}
+.resize-handle {
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 6px;
+  height: 100%;
+  cursor: col-resize;
+  user-select: none;
 }
 """
 
 JS = """const dimensions = ["primitive", "primitive_family", "goal", "analysis", "model_family", "solver", "difficulty", "io_mode", "model_mode"];
 const taxonomyFields = new Set(["primitive_family", "goal", "analysis", "model_family", "difficulty", "io_mode", "model_mode"]);
+const runColumns = [
+  ["benchmark", "Benchmark", record => record.benchmark_id],
+  ["primitive", "Primitive", record => record.challenge.primitive],
+  ["cipher_parameters", "Cipher Parameters", record => cipherParameters(record)],
+  ["architecture", "Architecture", record => architecture(record)],
+  ["claasp_method", "CLAASP Method", record => record.execution.claasp_method],
+  ["goal", "Goal", record => record.challenge.goal],
+  ["analysis", "Analysis", record => record.challenge.analysis],
+  ["model", "Model", record => record.challenge.model_family],
+  ["solver", "Solver", record => record.execution.solver],
+  ["status", "Status", record => record.status],
+  ["build", "Build", record => fmtSeconds(record.timing.build_time_seconds)],
+  ["solve", "Solve", record => fmtSeconds(record.timing.solve_time_seconds)],
+  ["wall", "Wall", record => fmtSeconds(record.timing.wall_time_seconds)],
+  ["memory", "Memory", record => fmtMemory(record.resources.peak_memory_mb)],
+  ["model_size", "Model Size", record => modelSize(record)],
+  ["claasp_output", "CLAASP Output", record => fmtValue(record.claasp_output || {})],
+  ["solver_output", "Solver Output", record => fmtValue(record.solver_output || {})],
+];
 let allResults = [];
 let taxonomy = {};
+let visibleColumns = new Set(runColumns.map(([id]) => id));
+let columnWidths = {};
 
 function escapeHtml(value) {
   return String(value)
@@ -184,7 +250,9 @@ function modelSize(record) {
 
 function architecture(record) {
   const machine = record.execution.machine || {};
-  return fmtValue(machine.platform || machine.machine);
+  const cpu = machine.cpu_model || machine.processor || machine.machine;
+  const cores = machine.usable_cpu_count || machine.cpu_count;
+  return `${fmtValue(cpu)}; cores=${fmtValue(cores)}; ${fmtValue(machine.platform || machine.machine)}`;
 }
 
 function median(values) {
@@ -223,6 +291,90 @@ function filteredResults() {
   }));
 }
 
+function instanceKey(record) {
+  return [
+    record.challenge.primitive,
+    cipherParameters(record),
+    record.execution.claasp_method || "NA",
+    record.challenge.analysis
+  ].join(" | ");
+}
+
+function buildColumnControls() {
+  const controls = document.getElementById("column-controls");
+  controls.innerHTML = runColumns.map(([id, label]) => `
+    <label><input type="checkbox" data-column="${id}" checked> ${escapeHtml(label)}</label>
+  `).join("");
+  controls.querySelectorAll("input[type='checkbox']").forEach(input => {
+    input.addEventListener("change", event => {
+      const id = event.target.dataset.column;
+      if (event.target.checked) visibleColumns.add(id);
+      else visibleColumns.delete(id);
+      render();
+    });
+  });
+}
+
+function renderHeader() {
+  const active = runColumns.filter(([id]) => visibleColumns.has(id));
+  const percent = active.length ? `${100 / active.length}%` : "100%";
+  document.getElementById("runs-colgroup").innerHTML = active.map(([id]) => `
+    <col data-column="${id}" style="width: ${columnWidths[id] || percent}">
+  `).join("");
+  document.getElementById("runs-header").innerHTML = active.map(([id, label]) => `
+    <th class="resizable-th" data-column="${id}">${escapeHtml(label)}<span class="resize-handle" data-column="${id}"></span></th>
+  `).join("");
+  document.querySelectorAll(".resize-handle").forEach(handle => {
+    handle.addEventListener("mousedown", startResize);
+  });
+}
+
+function startResize(event) {
+  event.preventDefault();
+  const columnId = event.target.dataset.column;
+  const col = document.querySelector(`col[data-column="${columnId}"]`);
+  const startX = event.clientX;
+  const startWidth = col.getBoundingClientRect().width;
+  function move(moveEvent) {
+    const nextWidth = Math.max(70, startWidth + moveEvent.clientX - startX);
+    columnWidths[columnId] = `${nextWidth}px`;
+    col.style.width = columnWidths[columnId];
+  }
+  function stop() {
+    document.removeEventListener("mousemove", move);
+    document.removeEventListener("mouseup", stop);
+  }
+  document.addEventListener("mousemove", move);
+  document.addEventListener("mouseup", stop);
+}
+
+function renderBenchmarkSummary(records) {
+  const groups = new Map();
+  for (const record of records) {
+    const key = instanceKey(record);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(record);
+  }
+  document.getElementById("summary-rows").innerHTML = [...groups.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([key, items]) => {
+    const durations = items.map(record => record.timing.wall_time_seconds).filter(value => typeof value === "number");
+    const statuses = items.reduce((counts, record) => {
+      counts[record.status] = (counts[record.status] || 0) + 1;
+      return counts;
+    }, {});
+    const solvers = [...new Set(items.map(record => record.execution.solver).filter(Boolean))].sort();
+    return `
+      <tr>
+        <td>${escapeHtml(key)}</td>
+        <td>${items.length}</td>
+        <td>${escapeHtml(solvers.join(", ") || "NA")}</td>
+        <td>${escapeHtml(Object.entries(statuses).map(([k, v]) => `${k}: ${v}`).join(", ") || "NA")}</td>
+        <td>${escapeHtml(durations.length ? fmtSeconds(Math.min(...durations)) : "NA")}</td>
+        <td>${escapeHtml(fmtSeconds(median(durations)))}</td>
+      </tr>
+    `;
+  }).join("");
+}
+
 function render() {
   const records = filteredResults();
   const durations = records.map(record => record.timing.wall_time_seconds).filter(value => typeof value === "number");
@@ -234,24 +386,12 @@ function render() {
   document.getElementById("best").textContent = durations.length ? fmtSeconds(Math.min(...durations)) : "-";
   document.getElementById("median").textContent = fmtSeconds(median(durations));
   document.getElementById("statuses").textContent = Object.entries(statusCounts).map(([k, v]) => `${k}: ${v}`).join(", ") || "-";
+  renderBenchmarkSummary(records);
+  renderHeader();
+  const active = runColumns.filter(([id]) => visibleColumns.has(id));
   document.getElementById("rows").innerHTML = records.map(record => `
     <tr>
-      <td>${escapeHtml(record.benchmark_id)}</td>
-      <td>${escapeHtml(record.challenge.primitive)}</td>
-      <td>${escapeHtml(cipherParameters(record))}</td>
-      <td>${escapeHtml(architecture(record))}</td>
-      <td>${escapeHtml(record.challenge.goal)}</td>
-      <td>${escapeHtml(record.challenge.analysis)}</td>
-      <td>${escapeHtml(record.challenge.model_family)}</td>
-      <td>${escapeHtml(record.execution.solver)}</td>
-      <td>${escapeHtml(record.status)}</td>
-      <td>${escapeHtml(fmtSeconds(record.timing.build_time_seconds))}</td>
-      <td>${escapeHtml(fmtSeconds(record.timing.solve_time_seconds))}</td>
-      <td>${escapeHtml(fmtSeconds(record.timing.wall_time_seconds))}</td>
-      <td>${escapeHtml(fmtMemory(record.resources.peak_memory_mb))}</td>
-      <td>${escapeHtml(modelSize(record))}</td>
-      <td>${escapeHtml(fmtValue(record.claasp_output || {}))}</td>
-      <td>${escapeHtml(fmtValue(record.solver_output || {}))}</td>
+      ${active.map(([, , getter]) => `<td>${escapeHtml(fmtValue(getter(record)))}</td>`).join("")}
     </tr>
   `).join("");
 }
@@ -264,6 +404,7 @@ Promise.all([
     allResults = results;
     taxonomy = taxonomyData;
     buildFilters();
+    buildColumnControls();
     render();
   });
 """

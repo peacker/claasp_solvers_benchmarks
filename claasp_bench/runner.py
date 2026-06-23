@@ -52,12 +52,16 @@ def _base_result(benchmark: Benchmark) -> dict[str, Any]:
             "seed": execution.seed,
             "expected_status": execution.expected_status,
             "task": execution.task,
+            "claasp_method": execution.task.get("claasp_method_name"),
             "machine": {
                 "system": platform.system(),
                 "machine": platform.machine(),
                 "processor": platform.processor() or None,
                 "platform": platform.platform(),
                 "node": platform.node() or None,
+                "cpu_model": None,
+                "cpu_count": os.cpu_count(),
+                "usable_cpu_count": len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else os.cpu_count(),
                 "python": platform.python_version(),
             },
         },
@@ -102,7 +106,7 @@ def _base_result(benchmark: Benchmark) -> dict[str, Any]:
 class SyntheticRunner:
     """Deterministic local runner used for validation, reports, and site fixtures."""
 
-    def run(self, benchmark: Benchmark, output_dir: Path) -> dict[str, Any]:
+    def run(self, benchmark: Benchmark, output_dir: Path) -> dict[str, Any] | list[dict[str, Any]]:
         started = time.perf_counter()
         result = _base_result(benchmark)
         task = benchmark.execution.task
@@ -180,17 +184,27 @@ class DockerRunner:
                 )
                 result["artifacts"]["stdout_excerpt"] = completed.stdout[-4000:]
                 result["artifacts"]["stderr_excerpt"] = completed.stderr[-4000:]
+                worker_result_path = Path(tmp) / "result.json"
                 if completed.returncode == 0:
-                    worker_result_path = Path(tmp) / "result.json"
                     if worker_result_path.exists():
                         result = json.loads(worker_result_path.read_text(encoding="utf-8"))
-                        result["execution"]["claasp_image"] = actual_image
+                        results = result if isinstance(result, list) else [result]
+                        for item in results:
+                            item["execution"]["claasp_image"] = actual_image
+                        result = results if isinstance(result, list) else results[0]
                     else:
                         result["status"] = "unknown"
                         result["error"] = "worker completed without writing /bench/result.json"
                 else:
-                    result["status"] = "error"
-                    result["error"] = f"docker exited with status {completed.returncode}"
+                    if worker_result_path.exists():
+                        result = json.loads(worker_result_path.read_text(encoding="utf-8"))
+                        results = result if isinstance(result, list) else [result]
+                        for item in results:
+                            item["execution"]["claasp_image"] = actual_image
+                        result = results if isinstance(result, list) else results[0]
+                    else:
+                        result["status"] = "error"
+                        result["error"] = f"docker exited with status {completed.returncode}"
             except subprocess.TimeoutExpired:
                 result["status"] = "timeout"
                 result["error"] = f"timeout after {benchmark.execution.timeout_seconds}s"
@@ -199,6 +213,8 @@ class DockerRunner:
                 result["error"] = f"{type(exc).__name__}: {exc}\n{traceback.format_exc()}"
 
         end_usage = resource.getrusage(resource.RUSAGE_CHILDREN)
+        if isinstance(result, list):
+            return result
         result["timing"]["wall_time_seconds"] = round(time.perf_counter() - started, 6)
         result["timing"]["cpu_time_seconds"] = round(
             (end_usage.ru_utime + end_usage.ru_stime) - (start_usage.ru_utime + start_usage.ru_stime),

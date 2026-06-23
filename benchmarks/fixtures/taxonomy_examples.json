@@ -13,8 +13,15 @@
       "difficulty": "tutorial",
       "io_mode": "fixed_io",
       "model_mode": "fixed_model",
-      "parameters": {"number_of_rounds": 2, "block_bit_size": 32, "key_bit_size": 64, "weight": 3},
-      "tags": ["fixture"]
+      "parameters": {
+        "number_of_rounds": 2,
+        "block_bit_size": 32,
+        "key_bit_size": 64,
+        "weight": 3
+      },
+      "tags": [
+        "fixture"
+      ]
     },
     "execution": {
       "runner": "synthetic",
@@ -27,8 +34,15 @@
         "synthetic_wall_time_seconds": 0.01,
         "synthetic_build_time_seconds": 0.004,
         "synthetic_solve_time_seconds": 0.006,
-        "model": {"variables": 128, "clauses": 512, "file_size_bytes": 4096},
-        "solver_output": {"solutions": 1}
+        "model": {
+          "variables": 128,
+          "clauses": 512,
+          "file_size_bytes": 4096
+        },
+        "solver_output": {
+          "solutions": 1
+        },
+        "claasp_method_name": "find_one_xor_differential_trail"
       }
     }
   },
@@ -46,8 +60,14 @@
       "difficulty": "benchmark",
       "io_mode": "fixed_io",
       "model_mode": "free_model",
-      "parameters": {"number_of_rounds": 3, "block_bit_size": 64, "key_bit_size": 80},
-      "tags": ["fixture"]
+      "parameters": {
+        "number_of_rounds": 3,
+        "block_bit_size": 64,
+        "key_bit_size": 80
+      },
+      "tags": [
+        "fixture"
+      ]
     },
     "execution": {
       "runner": "synthetic",
@@ -60,8 +80,15 @@
         "synthetic_wall_time_seconds": 0.02,
         "synthetic_build_time_seconds": 0.007,
         "synthetic_solve_time_seconds": 0.013,
-        "model": {"variables": 256, "constraints": 1024, "file_size_bytes": 8192},
-        "solver_output": {"enumerated_trails": 12}
+        "model": {
+          "variables": 256,
+          "constraints": 1024,
+          "file_size_bytes": 8192
+        },
+        "solver_output": {
+          "enumerated_trails": 12
+        },
+        "claasp_method_name": "find_all_xor_differential_trails"
       }
     }
   },
@@ -79,8 +106,14 @@
       "difficulty": "benchmark",
       "io_mode": "free_io",
       "model_mode": "fixed_model",
-      "parameters": {"number_of_rounds": 2, "block_bit_size": 128, "key_bit_size": 128},
-      "tags": ["fixture"]
+      "parameters": {
+        "number_of_rounds": 2,
+        "block_bit_size": 128,
+        "key_bit_size": 128
+      },
+      "tags": [
+        "fixture"
+      ]
     },
     "execution": {
       "runner": "synthetic",
@@ -93,8 +126,15 @@
         "synthetic_wall_time_seconds": 0.03,
         "synthetic_build_time_seconds": 0.011,
         "synthetic_solve_time_seconds": 0.019,
-        "model": {"variables": 512, "constraints": 2048, "file_size_bytes": 16384},
-        "solver_output": {"bound_proved": true}
+        "model": {
+          "variables": 512,
+          "constraints": 2048,
+          "file_size_bytes": 16384
+        },
+        "solver_output": {
+          "bound_proved": true
+        },
+        "claasp_method_name": "prove_bound"
       }
     }
   },
@@ -112,8 +152,13 @@
       "difficulty": "boundary",
       "io_mode": "fixed_io",
       "model_mode": "fixed_model",
-      "parameters": {"number_of_rounds": 2, "state_bit_size": 384},
-      "tags": ["fixture"]
+      "parameters": {
+        "number_of_rounds": 2,
+        "state_bit_size": 384
+      },
+      "tags": [
+        "fixture"
+      ]
     },
     "execution": {
       "runner": "synthetic",
@@ -126,8 +171,15 @@
         "synthetic_wall_time_seconds": 0.04,
         "synthetic_build_time_seconds": 0.015,
         "synthetic_solve_time_seconds": 0.025,
-        "model": {"variables": 384, "constraints": 768, "file_size_bytes": 12288},
-        "solver_output": {"solver_status_detail": "sat"}
+        "model": {
+          "variables": 384,
+          "constraints": 768,
+          "file_size_bytes": 12288
+        },
+        "solver_output": {
+          "solver_status_detail": "sat"
+        },
+        "claasp_method_name": "find_one_xor_differential_trail"
       }
     }
   }

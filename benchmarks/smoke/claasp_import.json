@@ -22,15 +22,17 @@
   },
   "execution": {
     "runner": "docker",
-    "solver": "import-check",
+    "solver": "all_available",
     "claasp_image": "tiicrc/claasp-base:latest",
     "timeout_seconds": 300,
     "memory_mb": 2048,
     "expected_status": "sat",
     "task": {
-      "kind": "claasp_cipher_metadata",
+      "kind": "claasp_sat_xor_differential_find_one",
+      "claasp_method_name": "SatXorDifferentialModel.find_one_xor_differential_trail",
       "status": "sat",
-      "show_solvers": false
+      "show_solvers": false,
+      "available_only": true
     }
   }
 }

@@ -19,8 +19,17 @@ concurrency:
 jobs:
   validate-report-site:
     runs-on: ubuntu-latest
+    env:
+      CLAASP_DOCKER_IMAGE: ${{ vars.CLAASP_DOCKER_IMAGE || 'tiicrc/claasp-base:latest' }}
+      CLAASP_SOURCE_DIR: claasp
     steps:
       - uses: actions/checkout@v4
+      - name: Checkout CLAASP source
+        if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || github.ref == 'refs/heads/main'
+        uses: actions/checkout@v4
+        with:
+          repository: Crypto-TII/claasp
+          path: claasp
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -31,6 +40,15 @@ jobs:
         run: python -m claasp_bench validate benchmarks
       - name: Run synthetic fixture benchmarks
         run: python -m claasp_bench run benchmarks/fixtures --output results --runner synthetic --fail-on-benchmark-error
+      - name: Check Docker
+        if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || github.ref == 'refs/heads/main'
+        run: docker version
+      - name: Pull CLAASP Docker image
+        if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || github.ref == 'refs/heads/main'
+        run: docker pull "$CLAASP_DOCKER_IMAGE"
+      - name: Run CLAASP available-solver sweep
+        if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || github.ref == 'refs/heads/main'
+        run: python -m claasp_bench run benchmarks/smoke --output results --runner docker
       - name: Generate Markdown report
         run: python -m claasp_bench report results --output results/report.md
       - name: Generate static site
@@ -59,29 +77,3 @@ jobs:
       - name: Deploy benchmark website
         id: deployment
         uses: actions/deploy-pages@v5
-
-  docker-smoke:
-    runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || github.ref == 'refs/heads/main'
-    env:
-      CLAASP_DOCKER_IMAGE: ${{ vars.CLAASP_DOCKER_IMAGE || 'tiicrc/claasp-base:latest' }}
-      CLAASP_SOURCE_DIR: claasp
-    steps:
-      - uses: actions/checkout@v4
-      - name: Checkout CLAASP source
-        uses: actions/checkout@v4
-        with:
-          repository: Crypto-TII/claasp
-          path: claasp
-      - name: Check Docker
-        run: docker version
-      - name: Pull CLAASP Docker image
-        run: docker pull "$CLAASP_DOCKER_IMAGE"
-      - name: Run CLAASP Docker smoke benchmark
-        run: python -m claasp_bench run benchmarks/smoke --output docker-results --runner docker --fail-on-benchmark-error
-      - name: Upload Docker smoke results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: claasp-docker-smoke-results
-          path: docker-results

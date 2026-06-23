@@ -48,6 +48,9 @@ checkout is not at `./claasp` or `../claasp`.
 Every push runs the fixture benchmark suite, generates `results.jsonl`, renders
 a Markdown report, and builds the static dashboard. The generated dashboard is
 always uploaded as the `claasp-benchmark-results` workflow artifact.
+Runs on `main`, scheduled runs, and manual runs also execute the Docker-backed
+CLAASP smoke benchmark against every available CLAASP solver for the benchmark's
+model family.
 
 If the repository is public, runs on `main` also deploy the dashboard with
 GitHub Pages. The public site URL is:
@@ -75,3 +78,7 @@ Each result records the benchmark taxonomy, CLAASP cipher parameters, execution
 architecture, build/solve/wall-clock timings, peak memory, model size fields,
 CLAASP metadata, and solver-specific output when available. Missing fields are
 reported as `NA` in the human-readable report and dashboard.
+
+The dashboard includes per-instance summaries grouped by cipher, parameters,
+CLAASP method, and analysis. Run-table columns can be shown/hidden with the
+checkbox list and resized by dragging column headers.

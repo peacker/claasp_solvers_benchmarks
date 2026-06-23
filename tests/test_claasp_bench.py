@@ -66,9 +66,14 @@ class ClaaspBenchTests(unittest.TestCase):
             self.assertTrue((site_dir / "index.html").exists())
             self.assertTrue((site_dir / "results.json").exists())
             app_js = (site_dir / "app.js").read_text(encoding="utf-8")
+            index_html = (site_dir / "index.html").read_text(encoding="utf-8")
             self.assertIn("primitive_family", app_js)
             self.assertIn("cipherParameters", app_js)
+            self.assertIn("buildColumnControls", app_js)
+            self.assertIn("renderBenchmarkSummary", app_js)
             self.assertIn("solver_output", app_js)
+            self.assertIn("column-controls", index_html)
+            self.assertIn("Benchmark Summary", index_html)
 
 
 if __name__ == "__main__":

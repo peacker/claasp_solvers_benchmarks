@@ -33,7 +33,9 @@ def _fmt_memory(value: object) -> str:
 
 
 def _fmt_arch(machine: dict[str, Any]) -> str:
-    return _fmt_value(machine.get("platform") or machine.get("machine"))
+    cpu = machine.get("cpu_model") or machine.get("processor") or machine.get("machine")
+    cores = machine.get("usable_cpu_count") or machine.get("cpu_count")
+    return f"{_fmt_value(cpu)}; cores={_fmt_value(cores)}; {_fmt_value(machine.get('platform') or machine.get('machine'))}"
 
 
 def _fmt_cipher_parameters(cipher: dict[str, Any]) -> str:
@@ -56,8 +58,8 @@ def markdown_report(results_dir: Path) -> str:
         f"Best wall time: {_fmt_seconds(summary['best_wall_time_seconds'])}",
         f"Median wall time: {_fmt_seconds(summary['median_wall_time_seconds'])}",
         "",
-        "| Benchmark | Primitive | Cipher Parameters | Architecture | Goal | Analysis | Model | Solver | Status | Build | Solve | Wall | Memory | Model Size | CLAASP Output | Solver Output |",
-        "|---|---|---|---|---|---|---|---|---|---:|---:|---:|---:|---|---|---|",
+        "| Benchmark | Primitive | Cipher Parameters | Architecture | CLAASP Method | Goal | Analysis | Model | Solver | Status | Build | Solve | Wall | Memory | Model Size | CLAASP Output | Solver Output |",
+        "|---|---|---|---|---|---|---|---|---|---|---:|---:|---:|---:|---|---|---|",
     ]
     for record in sorted(records, key=lambda item: item["benchmark_id"]):
         challenge = record["challenge"]
@@ -65,12 +67,13 @@ def markdown_report(results_dir: Path) -> str:
         cipher = record.get("cipher", {})
         model = record.get("model", {})
         lines.append(
-            "| {benchmark} | {primitive} | {params} | {arch} | {goal} | {analysis} | {model_family} | {solver} | "
+            "| {benchmark} | {primitive} | {params} | {arch} | {method} | {goal} | {analysis} | {model_family} | {solver} | "
             "{status} | {build} | {solve} | {wall} | {memory} | {model_size} | {claasp_output} | {solver_output} |".format(
                 benchmark=record["benchmark_id"],
                 primitive=challenge["primitive"],
                 params=_fmt_cipher_parameters(cipher),
                 arch=_fmt_arch(execution.get("machine", {})),
+                method=_fmt_value(execution.get("claasp_method")),
                 goal=challenge["goal"],
                 analysis=challenge["analysis"],
                 model_family=challenge["model_family"],

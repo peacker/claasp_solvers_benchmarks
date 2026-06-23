@@ -3,6 +3,7 @@ __pycache__/
 .pytest_cache/
 results/
 docker-results/
+*_sat_input.cnf
 docs/results.json
 docs/summary.json
 docs/taxonomy.json

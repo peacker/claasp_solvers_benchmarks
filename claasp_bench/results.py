@@ -14,7 +14,7 @@ from .schema import validate_result
 def write_json(path: Path, data: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8") as handle:
-        json.dump(data, handle, indent=2, sort_keys=True)
+        json.dump(data, handle, indent=2, sort_keys=True, allow_nan=False)
         handle.write("\n")
 
 
@@ -23,7 +23,7 @@ def append_jsonl(path: Path, records: Iterable[dict[str, Any]]) -> None:
     with path.open("a", encoding="utf-8") as handle:
         for record in records:
             validate_result(record)
-            handle.write(json.dumps(record, sort_keys=True))
+            handle.write(json.dumps(record, sort_keys=True, allow_nan=False))
             handle.write("\n")
 
 
