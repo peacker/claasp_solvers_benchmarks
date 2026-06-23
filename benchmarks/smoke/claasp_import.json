@@ -13,7 +13,9 @@
     "io_mode": "fixed_io",
     "model_mode": "fixed_model",
     "parameters": {
-      "rounds": 2,
+      "number_of_rounds": 2,
+      "block_bit_size": 32,
+      "key_bit_size": 64,
       "weight": 3
     },
     "tags": ["smoke", "docker", "claasp"]
@@ -26,7 +28,7 @@
     "memory_mb": 2048,
     "expected_status": "sat",
     "task": {
-      "kind": "claasp_import_check",
+      "kind": "claasp_cipher_metadata",
       "status": "sat",
       "show_solvers": false
     }

@@ -34,8 +34,9 @@ HTML = """<!doctype html>
       <table>
         <thead>
           <tr>
-            <th>Benchmark</th><th>Primitive</th><th>Family</th><th>Goal</th>
-            <th>Analysis</th><th>Model</th><th>Solver</th><th>Difficulty</th><th>Status</th><th>Time</th>
+            <th>Benchmark</th><th>Primitive</th><th>Cipher Parameters</th><th>Architecture</th>
+            <th>Goal</th><th>Analysis</th><th>Model</th><th>Solver</th><th>Status</th>
+            <th>Build</th><th>Solve</th><th>Wall</th><th>Memory</th><th>Model Size</th><th>CLAASP Output</th><th>Solver Output</th>
           </tr>
         </thead>
         <tbody id="rows"></tbody>
@@ -108,11 +109,15 @@ select {
 .summary span {
   color: #57606f;
 }
+section {
+  overflow-x: auto;
+}
 table {
   width: 100%;
   border-collapse: collapse;
   background: #ffffff;
   border: 1px solid #dfe4ea;
+  min-width: 1480px;
 }
 th, td {
   padding: 9px 10px;
@@ -132,8 +137,54 @@ const taxonomyFields = new Set(["primitive_family", "goal", "analysis", "model_f
 let allResults = [];
 let taxonomy = {};
 
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function fmtValue(value) {
+  if (value === null || value === undefined || value === "") return "NA";
+  if (typeof value === "boolean") return value ? "true" : "false";
+  if (typeof value === "number") return Number.isInteger(value) ? String(value) : value.toFixed(3);
+  if (Array.isArray(value)) return `[${value.map(fmtValue).join(", ")}]`;
+  if (typeof value === "object") {
+    const entries = Object.entries(value).filter(([, item]) => item !== null && item !== undefined);
+    if (!entries.length) return "NA";
+    return entries.sort(([a], [b]) => a.localeCompare(b)).map(([key, item]) => `${key}=${fmtValue(item)}`).join(", ");
+  }
+  return String(value);
+}
+
 function fmtSeconds(value) {
-  return value === null || value === undefined ? "-" : `${Number(value).toFixed(3)}s`;
+  return value === null || value === undefined ? "NA" : `${Number(value).toFixed(3)}s`;
+}
+
+function fmtMemory(value) {
+  return value === null || value === undefined ? "NA" : `${Number(value).toFixed(1)} MB`;
+}
+
+function cipherParameters(record) {
+  const cipher = record.cipher || {};
+  const parameters = {...(cipher.parameters || {})};
+  for (const key of ["number_of_rounds", "block_bit_size", "key_bit_size", "state_bit_size"]) {
+    if (cipher[key] !== null && cipher[key] !== undefined && parameters[key] === undefined) {
+      parameters[key] = cipher[key];
+    }
+  }
+  return fmtValue(parameters);
+}
+
+function modelSize(record) {
+  return fmtValue(record.model || {});
+}
+
+function architecture(record) {
+  const machine = record.execution.machine || {};
+  return fmtValue(machine.platform || machine.machine);
 }
 
 function median(values) {
@@ -185,16 +236,22 @@ function render() {
   document.getElementById("statuses").textContent = Object.entries(statusCounts).map(([k, v]) => `${k}: ${v}`).join(", ") || "-";
   document.getElementById("rows").innerHTML = records.map(record => `
     <tr>
-      <td>${record.benchmark_id}</td>
-      <td>${record.challenge.primitive}</td>
-      <td>${record.challenge.primitive_family}</td>
-      <td>${record.challenge.goal}</td>
-      <td>${record.challenge.analysis}</td>
-      <td>${record.challenge.model_family}</td>
-      <td>${record.execution.solver}</td>
-      <td>${record.challenge.difficulty}</td>
-      <td>${record.status}</td>
-      <td>${fmtSeconds(record.timing.wall_time_seconds)}</td>
+      <td>${escapeHtml(record.benchmark_id)}</td>
+      <td>${escapeHtml(record.challenge.primitive)}</td>
+      <td>${escapeHtml(cipherParameters(record))}</td>
+      <td>${escapeHtml(architecture(record))}</td>
+      <td>${escapeHtml(record.challenge.goal)}</td>
+      <td>${escapeHtml(record.challenge.analysis)}</td>
+      <td>${escapeHtml(record.challenge.model_family)}</td>
+      <td>${escapeHtml(record.execution.solver)}</td>
+      <td>${escapeHtml(record.status)}</td>
+      <td>${escapeHtml(fmtSeconds(record.timing.build_time_seconds))}</td>
+      <td>${escapeHtml(fmtSeconds(record.timing.solve_time_seconds))}</td>
+      <td>${escapeHtml(fmtSeconds(record.timing.wall_time_seconds))}</td>
+      <td>${escapeHtml(fmtMemory(record.resources.peak_memory_mb))}</td>
+      <td>${escapeHtml(modelSize(record))}</td>
+      <td>${escapeHtml(fmtValue(record.claasp_output || {}))}</td>
+      <td>${escapeHtml(fmtValue(record.solver_output || {}))}</td>
     </tr>
   `).join("");
 }

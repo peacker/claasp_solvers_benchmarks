@@ -49,16 +49,26 @@ class ClaaspBenchTests(unittest.TestCase):
             )
             records = load_result_records(results_dir)
             self.assertEqual(len(records), 4)
+            self.assertIn("cipher", records[0])
+            self.assertIn("build_time_seconds", records[0]["timing"])
+            self.assertIn("solver_output", records[0])
 
             self.assertEqual(main(["report", str(results_dir), "--output", str(report_path)]), 0)
             report = report_path.read_text(encoding="utf-8")
             self.assertIn("CLAASP Benchmark Report", report)
             self.assertIn("Speck-32/64", report)
+            self.assertIn("Cipher Parameters", report)
+            self.assertIn("Architecture", report)
+            self.assertIn("CLAASP Output", report)
+            self.assertIn("Solver Output", report)
 
             self.assertEqual(main(["site", str(results_dir), "--output", str(site_dir)]), 0)
             self.assertTrue((site_dir / "index.html").exists())
             self.assertTrue((site_dir / "results.json").exists())
-            self.assertIn("primitive_family", (site_dir / "app.js").read_text(encoding="utf-8"))
+            app_js = (site_dir / "app.js").read_text(encoding="utf-8")
+            self.assertIn("primitive_family", app_js)
+            self.assertIn("cipherParameters", app_js)
+            self.assertIn("solver_output", app_js)
 
 
 if __name__ == "__main__":

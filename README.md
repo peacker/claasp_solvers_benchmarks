@@ -70,3 +70,8 @@ The Docker smoke job uses `tiicrc/claasp-base:latest` by default and checks out
 Runs append records to `results.jsonl`. The generated site copies those records
 to `results.json`, writes `summary.json` and `taxonomy.json`, and serves a
 static faceted browser suitable for GitHub Pages.
+
+Each result records the benchmark taxonomy, CLAASP cipher parameters, execution
+architecture, build/solve/wall-clock timings, peak memory, model size fields,
+CLAASP metadata, and solver-specific output when available. Missing fields are
+reported as `NA` in the human-readable report and dashboard.

@@ -3,12 +3,46 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 from .results import load_result_records, summarize
 
 
 def _fmt_seconds(value: object) -> str:
-    return "-" if value is None else f"{float(value):.3f}s"
+    return "NA" if value is None else f"{float(value):.3f}s"
+
+
+def _fmt_value(value: Any) -> str:
+    if value is None or value == "":
+        return "NA"
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, float):
+        return f"{value:.3f}"
+    if isinstance(value, dict):
+        if not value:
+            return "NA"
+        return ", ".join(f"{key}={_fmt_value(item)}" for key, item in sorted(value.items()))
+    if isinstance(value, list):
+        return "[" + ", ".join(_fmt_value(item) for item in value) + "]"
+    return str(value)
+
+
+def _fmt_memory(value: object) -> str:
+    return "NA" if value is None else f"{float(value):.1f} MB"
+
+
+def _fmt_arch(machine: dict[str, Any]) -> str:
+    return _fmt_value(machine.get("platform") or machine.get("machine"))
+
+
+def _fmt_cipher_parameters(cipher: dict[str, Any]) -> str:
+    parameters = dict(cipher.get("parameters") or {})
+    for key in ["number_of_rounds", "block_bit_size", "key_bit_size", "state_bit_size"]:
+        value = cipher.get(key)
+        if value is not None:
+            parameters.setdefault(key, value)
+    return _fmt_value(parameters)
 
 
 def markdown_report(results_dir: Path) -> str:
@@ -22,28 +56,33 @@ def markdown_report(results_dir: Path) -> str:
         f"Best wall time: {_fmt_seconds(summary['best_wall_time_seconds'])}",
         f"Median wall time: {_fmt_seconds(summary['median_wall_time_seconds'])}",
         "",
-        "| Benchmark | Primitive | Family | Goal | Analysis | Model | Solver | Difficulty | Status | Time | Memory |",
-        "|---|---|---|---|---|---|---|---|---|---:|---:|",
+        "| Benchmark | Primitive | Cipher Parameters | Architecture | Goal | Analysis | Model | Solver | Status | Build | Solve | Wall | Memory | Model Size | CLAASP Output | Solver Output |",
+        "|---|---|---|---|---|---|---|---|---|---:|---:|---:|---:|---|---|---|",
     ]
     for record in sorted(records, key=lambda item: item["benchmark_id"]):
         challenge = record["challenge"]
         execution = record["execution"]
-        memory = record["resources"].get("peak_memory_mb")
-        memory_text = "-" if memory is None else f"{float(memory):.1f} MB"
+        cipher = record.get("cipher", {})
+        model = record.get("model", {})
         lines.append(
-            "| {benchmark} | {primitive} | {family} | {goal} | {analysis} | {model} | {solver} | "
-            "{difficulty} | {status} | {time} | {memory} |".format(
+            "| {benchmark} | {primitive} | {params} | {arch} | {goal} | {analysis} | {model_family} | {solver} | "
+            "{status} | {build} | {solve} | {wall} | {memory} | {model_size} | {claasp_output} | {solver_output} |".format(
                 benchmark=record["benchmark_id"],
                 primitive=challenge["primitive"],
-                family=challenge["primitive_family"],
+                params=_fmt_cipher_parameters(cipher),
+                arch=_fmt_arch(execution.get("machine", {})),
                 goal=challenge["goal"],
                 analysis=challenge["analysis"],
-                model=challenge["model_family"],
+                model_family=challenge["model_family"],
                 solver=execution["solver"],
-                difficulty=challenge["difficulty"],
                 status=record["status"],
-                time=_fmt_seconds(record["timing"].get("wall_time_seconds")),
-                memory=memory_text,
+                build=_fmt_seconds(record["timing"].get("build_time_seconds")),
+                solve=_fmt_seconds(record["timing"].get("solve_time_seconds")),
+                wall=_fmt_seconds(record["timing"].get("wall_time_seconds")),
+                memory=_fmt_memory(record["resources"].get("peak_memory_mb")),
+                model_size=_fmt_value(model),
+                claasp_output=_fmt_value(record.get("claasp_output", {})),
+                solver_output=_fmt_value(record.get("solver_output", {})),
             )
         )
     return "\n".join(lines) + "\n"

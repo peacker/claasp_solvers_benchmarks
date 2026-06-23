@@ -55,13 +55,30 @@ def _base_result(benchmark: Benchmark) -> dict[str, Any]:
             "machine": {
                 "system": platform.system(),
                 "machine": platform.machine(),
+                "processor": platform.processor() or None,
+                "platform": platform.platform(),
+                "node": platform.node() or None,
                 "python": platform.python_version(),
             },
+        },
+        "cipher": {
+            "id": None,
+            "family_name": challenge.primitive,
+            "cipher_type": None,
+            "parameters": challenge.parameters,
+            "number_of_rounds": challenge.parameters.get("number_of_rounds") or challenge.parameters.get("rounds"),
+            "block_bit_size": challenge.parameters.get("block_bit_size"),
+            "key_bit_size": challenge.parameters.get("key_bit_size"),
+            "input_bit_sizes": None,
+            "output_bit_size": None,
+            "component_count": None,
         },
         "status": "unknown",
         "timing": {
             "wall_time_seconds": None,
             "cpu_time_seconds": None,
+            "build_time_seconds": None,
+            "solve_time_seconds": None,
             "time_to_first_solution_seconds": None,
             "proof_time_seconds": None,
             "enumeration_time_seconds": None,
@@ -75,6 +92,8 @@ def _base_result(benchmark: Benchmark) -> dict[str, Any]:
             "clauses": None,
             "file_size_bytes": None,
         },
+        "claasp_output": {},
+        "solver_output": {},
         "artifacts": {},
         "error": None,
     }
@@ -92,8 +111,11 @@ class SyntheticRunner:
         result["status"] = task.get("status", benchmark.execution.expected_status or "sat")
         result["timing"]["wall_time_seconds"] = round(time.perf_counter() - started, 6)
         result["timing"]["cpu_time_seconds"] = 0.0
+        result["timing"]["build_time_seconds"] = task.get("synthetic_build_time_seconds")
+        result["timing"]["solve_time_seconds"] = task.get("synthetic_solve_time_seconds")
         result["resources"]["peak_memory_mb"] = 0.0
         result["model"].update(task.get("model", {}))
+        result["solver_output"].update(task.get("solver_output", {}))
         return result
 
 
@@ -162,6 +184,7 @@ class DockerRunner:
                     worker_result_path = Path(tmp) / "result.json"
                     if worker_result_path.exists():
                         result = json.loads(worker_result_path.read_text(encoding="utf-8"))
+                        result["execution"]["claasp_image"] = actual_image
                     else:
                         result["status"] = "unknown"
                         result["error"] = "worker completed without writing /bench/result.json"
