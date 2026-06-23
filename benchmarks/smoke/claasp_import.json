@@ -32,7 +32,9 @@
       "claasp_method_name": "SatXorDifferentialModel.find_one_xor_differential_trail",
       "status": "sat",
       "show_solvers": false,
-      "available_only": true
+      "available_only": true,
+      "solver_source": "external",
+      "solver_timeout_seconds": 30
     }
   }
 }

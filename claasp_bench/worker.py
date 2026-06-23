@@ -9,6 +9,8 @@ import numbers
 import os
 import platform
 import resource
+import shutil
+import signal
 import sys
 import time
 import traceback
@@ -16,7 +18,7 @@ from pathlib import Path
 from typing import Any
 
 from .schema import benchmark_from_dict
-from .runner import _base_result, maxrss_to_mb
+from .runner import _base_result, cpu_model, maxrss_to_mb
 
 
 MODEL_FAMILY_TO_SOLVER_FAMILY = {
@@ -28,12 +30,7 @@ MODEL_FAMILY_TO_SOLVER_FAMILY = {
 
 
 def _cpu_model() -> str | None:
-    cpuinfo = Path("/proc/cpuinfo")
-    if cpuinfo.exists():
-        for line in cpuinfo.read_text(encoding="utf-8", errors="ignore").splitlines():
-            if line.lower().startswith("model name"):
-                return line.split(":", 1)[1].strip()
-    return platform.processor() or None
+    return cpu_model()
 
 
 def _safe_public_value(value: Any) -> Any:
@@ -200,17 +197,55 @@ def _run_claasp_sat_xor_differential_find_one(benchmark: Any, solver_name: str) 
 
 
 def _available_solver_rows(benchmark: Any) -> list[dict[str, Any]]:
-    from claasp.catalog import Catalog
-
     family = benchmark.execution.task.get("solver_family") or MODEL_FAMILY_TO_SOLVER_FAMILY.get(
         benchmark.challenge.model_family
     )
-    rows = Catalog().solvers()["rows"]
+    try:
+        from claasp.catalog import Catalog
+
+        rows = Catalog().solvers()["rows"]
+    except ModuleNotFoundError:
+        rows = _fallback_solver_rows()
     if family:
         rows = [row for row in rows if row.get("family") == family]
+    source = benchmark.execution.task.get("solver_source")
+    if source:
+        rows = [row for row in rows if row.get("source") == source]
     if benchmark.execution.task.get("available_only", True):
         rows = [row for row in rows if row.get("available")]
     return rows
+
+
+def _fallback_solver_rows() -> list[dict[str, Any]]:
+    solver_modules = [
+        ("sat", "claasp.cipher_modules.models.sat.solvers", "SAT_SOLVERS_INTERNAL", "SAT_SOLVERS_EXTERNAL"),
+        ("smt", "claasp.cipher_modules.models.smt.solvers", "SMT_SOLVERS_INTERNAL", "SMT_SOLVERS_EXTERNAL"),
+        ("milp", "claasp.cipher_modules.models.milp.solvers", "MILP_SOLVERS_INTERNAL", "MILP_SOLVERS_EXTERNAL"),
+        ("cp", "claasp.cipher_modules.models.cp.solvers", "CP_SOLVERS_INTERNAL", "CP_SOLVERS_EXTERNAL"),
+    ]
+    rows: list[dict[str, Any]] = []
+    for family, module_name, internal_name, external_name in solver_modules:
+        try:
+            module = __import__(module_name, fromlist=[internal_name, external_name])
+        except ModuleNotFoundError:
+            continue
+        for solver in getattr(module, internal_name, []):
+            rows.append(_solver_row(family, solver, source="internal"))
+        for solver in getattr(module, external_name, []):
+            rows.append(_solver_row(family, solver, source="external"))
+    return rows
+
+
+def _solver_row(family: str, solver: dict[str, Any], source: str) -> dict[str, Any]:
+    executable = solver.get("keywords", {}).get("command", {}).get("executable")
+    return {
+        "solver_name": solver.get("solver_name"),
+        "solver_brand_name": solver.get("solver_brand_name"),
+        "family": family,
+        "source": source,
+        "executable": executable,
+        "available": True if source == "internal" else bool(executable and shutil.which(executable)),
+    }
 
 
 def _run_synthetic(task: dict[str, Any]) -> dict[str, Any]:
@@ -275,7 +310,11 @@ def run_worker(manifest_path: Path, result_path: Path) -> int:
             solver_started = time.perf_counter()
             solver_usage = resource.getrusage(resource.RUSAGE_SELF)
             try:
-                details = _run_claasp_sat_xor_differential_find_one(benchmark, row.get("solver_name"))
+                details = _run_solver_with_timeout(
+                    benchmark,
+                    row.get("solver_name"),
+                    task.get("solver_timeout_seconds"),
+                )
                 details["solver_output"].update(
                     {
                         "solver_brand_name": row.get("solver_brand_name"),
@@ -286,9 +325,34 @@ def run_worker(manifest_path: Path, result_path: Path) -> int:
                     }
                 )
                 _apply_details(item, details)
+            except TimeoutError as exc:
+                item["status"] = "timeout"
+                item["error"] = str(exc)
+                item["claasp_output"].update(
+                    {
+                        "version": _claasp_version(),
+                        "method_name": "SatXorDifferentialModel.find_one_xor_differential_trail",
+                    }
+                )
+                item["solver_output"].update(
+                    {
+                        "solver_name": row.get("solver_name"),
+                        "solver_brand_name": row.get("solver_brand_name"),
+                        "solver_family": row.get("family"),
+                        "solver_source": row.get("source"),
+                        "solver_executable": row.get("executable"),
+                        "solver_available": row.get("available"),
+                    }
+                )
             except Exception as exc:
                 item["status"] = "error"
                 item["error"] = f"{type(exc).__name__}: {exc}\n{traceback.format_exc()}"
+                item["claasp_output"].update(
+                    {
+                        "version": _claasp_version(),
+                        "method_name": "SatXorDifferentialModel.find_one_xor_differential_trail",
+                    }
+                )
                 item["solver_output"].update(
                     {
                         "solver_name": row.get("solver_name"),
@@ -301,6 +365,7 @@ def run_worker(manifest_path: Path, result_path: Path) -> int:
                 )
             _finalize_timing(item, solver_started, solver_usage)
             expanded_results.append(item)
+            result_path.write_text(json.dumps(expanded_results, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         result_path.write_text(json.dumps(expanded_results, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         return 0
     try:
@@ -308,6 +373,12 @@ def run_worker(manifest_path: Path, result_path: Path) -> int:
             details = _run_claasp_import_check(benchmark)
         elif task_kind == "claasp_cipher_metadata":
             details = _run_claasp_cipher_metadata(benchmark)
+        elif task_kind == "claasp_sat_xor_differential_find_one":
+            details = _run_solver_with_timeout(
+                benchmark,
+                benchmark.execution.solver,
+                task.get("solver_timeout_seconds"),
+            )
         elif task_kind == "synthetic":
             details = _run_synthetic(task)
         else:
@@ -344,6 +415,22 @@ def run_worker(manifest_path: Path, result_path: Path) -> int:
     result_path.write_text(json.dumps(result_payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     records = result_payload if isinstance(result_payload, list) else [result_payload]
     return 0 if all(record["status"] != "error" for record in records) else 1
+
+
+def _run_solver_with_timeout(benchmark: Any, solver_name: str, timeout_seconds: Any) -> dict[str, Any]:
+    if not timeout_seconds:
+        return _run_claasp_sat_xor_differential_find_one(benchmark, solver_name)
+
+    def timeout_handler(_signum: int, _frame: Any) -> None:
+        raise TimeoutError(f"solver timed out after {timeout_seconds}s")
+
+    previous_handler = signal.signal(signal.SIGALRM, timeout_handler)
+    signal.alarm(int(timeout_seconds))
+    try:
+        return _run_claasp_sat_xor_differential_find_one(benchmark, solver_name)
+    finally:
+        signal.alarm(0)
+        signal.signal(signal.SIGALRM, previous_handler)
 
 
 def main(argv: list[str] | None = None) -> int:

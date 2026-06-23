@@ -58,8 +58,8 @@ def markdown_report(results_dir: Path) -> str:
         f"Best wall time: {_fmt_seconds(summary['best_wall_time_seconds'])}",
         f"Median wall time: {_fmt_seconds(summary['median_wall_time_seconds'])}",
         "",
-        "| Benchmark | Primitive | Cipher Parameters | Architecture | CLAASP Method | Goal | Analysis | Model | Solver | Status | Build | Solve | Wall | Memory | Model Size | CLAASP Output | Solver Output |",
-        "|---|---|---|---|---|---|---|---|---|---|---:|---:|---:|---:|---|---|---|",
+        "| Benchmark | Primitive | Cipher Parameters | Architecture | CLAASP Method | Goal | Analysis | Model | Solver | Status | Build | Solve | Wall | Memory | Model Size | CLAASP Output | Solver Output | Error | Artifacts |",
+        "|---|---|---|---|---|---|---|---|---|---|---:|---:|---:|---:|---|---|---|---|---|",
     ]
     for record in sorted(records, key=lambda item: item["benchmark_id"]):
         challenge = record["challenge"]
@@ -68,7 +68,8 @@ def markdown_report(results_dir: Path) -> str:
         model = record.get("model", {})
         lines.append(
             "| {benchmark} | {primitive} | {params} | {arch} | {method} | {goal} | {analysis} | {model_family} | {solver} | "
-            "{status} | {build} | {solve} | {wall} | {memory} | {model_size} | {claasp_output} | {solver_output} |".format(
+            "{status} | {build} | {solve} | {wall} | {memory} | {model_size} | {claasp_output} | {solver_output} | "
+            "{error} | {artifacts} |".format(
                 benchmark=record["benchmark_id"],
                 primitive=challenge["primitive"],
                 params=_fmt_cipher_parameters(cipher),
@@ -86,6 +87,8 @@ def markdown_report(results_dir: Path) -> str:
                 model_size=_fmt_value(model),
                 claasp_output=_fmt_value(record.get("claasp_output", {})),
                 solver_output=_fmt_value(record.get("solver_output", {})),
+                error=_fmt_value(record.get("error")),
+                artifacts=_fmt_value(record.get("artifacts", {})),
             )
         )
     return "\n".join(lines) + "\n"

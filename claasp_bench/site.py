@@ -199,6 +199,8 @@ const runColumns = [
   ["model_size", "Model Size", record => modelSize(record)],
   ["claasp_output", "CLAASP Output", record => fmtValue(record.claasp_output || {})],
   ["solver_output", "Solver Output", record => fmtValue(record.solver_output || {})],
+  ["error", "Error", record => record.error],
+  ["artifacts", "Artifacts", record => fmtValue(record.artifacts || {})],
 ];
 let allResults = [];
 let taxonomy = {};

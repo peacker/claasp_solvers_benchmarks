@@ -16,6 +16,15 @@ from typing import Any
 from .schema import Benchmark, benchmark_to_dict, utc_now
 
 
+def cpu_model() -> str | None:
+    cpuinfo = Path("/proc/cpuinfo")
+    if cpuinfo.exists():
+        for line in cpuinfo.read_text(encoding="utf-8", errors="ignore").splitlines():
+            if line.lower().startswith("model name"):
+                return line.split(":", 1)[1].strip()
+    return platform.processor() or None
+
+
 def maxrss_to_mb(maxrss: int) -> float:
     divisor = 1024 * 1024 if platform.system() == "Darwin" else 1024
     return round(maxrss / divisor, 3)
@@ -59,7 +68,7 @@ def _base_result(benchmark: Benchmark) -> dict[str, Any]:
                 "processor": platform.processor() or None,
                 "platform": platform.platform(),
                 "node": platform.node() or None,
-                "cpu_model": None,
+                "cpu_model": cpu_model(),
                 "cpu_count": os.cpu_count(),
                 "usable_cpu_count": len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else os.cpu_count(),
                 "python": platform.python_version(),
@@ -206,8 +215,16 @@ class DockerRunner:
                         result["status"] = "error"
                         result["error"] = f"docker exited with status {completed.returncode}"
             except subprocess.TimeoutExpired:
-                result["status"] = "timeout"
-                result["error"] = f"timeout after {benchmark.execution.timeout_seconds}s"
+                worker_result_path = Path(tmp) / "result.json"
+                if worker_result_path.exists():
+                    result = json.loads(worker_result_path.read_text(encoding="utf-8"))
+                    results = result if isinstance(result, list) else [result]
+                    for item in results:
+                        item["execution"]["claasp_image"] = actual_image
+                    result = results if isinstance(result, list) else results[0]
+                else:
+                    result["status"] = "timeout"
+                    result["error"] = f"timeout after {benchmark.execution.timeout_seconds}s"
             except Exception as exc:
                 result["status"] = "error"
                 result["error"] = f"{type(exc).__name__}: {exc}\n{traceback.format_exc()}"
