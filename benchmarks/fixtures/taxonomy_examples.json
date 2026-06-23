@@ -1,0 +1,122 @@
+[
+  {
+    "id": "fixture_arx_differential_find_one",
+    "tier": "smoke",
+    "challenge": {
+      "id": "speck32_64_r2_diff_find_one",
+      "name": "Speck differential one-trail fixture",
+      "primitive": "Speck-32/64",
+      "primitive_family": "ARX",
+      "goal": "find_one_trail",
+      "analysis": "differential",
+      "model_family": "SAT",
+      "difficulty": "tutorial",
+      "io_mode": "fixed_io",
+      "model_mode": "fixed_model",
+      "parameters": {"rounds": 2, "weight": 3},
+      "tags": ["fixture"]
+    },
+    "execution": {
+      "runner": "synthetic",
+      "solver": "synthetic-sat",
+      "timeout_seconds": 10,
+      "expected_status": "sat",
+      "task": {
+        "kind": "synthetic",
+        "status": "sat",
+        "synthetic_wall_time_seconds": 0.01,
+        "model": {"variables": 128, "clauses": 512, "file_size_bytes": 4096}
+      }
+    }
+  },
+  {
+    "id": "fixture_spn_differential_enumerate",
+    "tier": "smoke",
+    "challenge": {
+      "id": "present_r3_diff_enumerate",
+      "name": "PRESENT differential enumeration fixture",
+      "primitive": "PRESENT",
+      "primitive_family": "bit_based_SPN",
+      "goal": "enumerate_trails",
+      "analysis": "differential",
+      "model_family": "CP_MiniZinc",
+      "difficulty": "benchmark",
+      "io_mode": "fixed_io",
+      "model_mode": "free_model",
+      "parameters": {"rounds": 3},
+      "tags": ["fixture"]
+    },
+    "execution": {
+      "runner": "synthetic",
+      "solver": "synthetic-cp",
+      "timeout_seconds": 10,
+      "expected_status": "optimum",
+      "task": {
+        "kind": "synthetic",
+        "status": "optimum",
+        "synthetic_wall_time_seconds": 0.02,
+        "model": {"variables": 256, "constraints": 1024, "file_size_bytes": 8192}
+      }
+    }
+  },
+  {
+    "id": "fixture_aes_bound",
+    "tier": "nightly",
+    "challenge": {
+      "id": "aes_r2_linear_bound",
+      "name": "AES-like linear bound fixture",
+      "primitive": "AES",
+      "primitive_family": "word_based_SPN",
+      "goal": "prove_bound",
+      "analysis": "linear",
+      "model_family": "MILP",
+      "difficulty": "benchmark",
+      "io_mode": "free_io",
+      "model_mode": "fixed_model",
+      "parameters": {"rounds": 2},
+      "tags": ["fixture"]
+    },
+    "execution": {
+      "runner": "synthetic",
+      "solver": "synthetic-milp",
+      "timeout_seconds": 10,
+      "expected_status": "unsat",
+      "task": {
+        "kind": "synthetic",
+        "status": "unsat",
+        "synthetic_wall_time_seconds": 0.03,
+        "model": {"variables": 512, "constraints": 2048, "file_size_bytes": 16384}
+      }
+    }
+  },
+  {
+    "id": "fixture_permutation_differential",
+    "tier": "nightly",
+    "challenge": {
+      "id": "gimli_r2_diff_permutation",
+      "name": "Gimli permutation differential fixture",
+      "primitive": "Gimli",
+      "primitive_family": "permutation",
+      "goal": "find_one_trail",
+      "analysis": "differential",
+      "model_family": "SMT",
+      "difficulty": "boundary",
+      "io_mode": "fixed_io",
+      "model_mode": "fixed_model",
+      "parameters": {"rounds": 2},
+      "tags": ["fixture"]
+    },
+    "execution": {
+      "runner": "synthetic",
+      "solver": "synthetic-smt",
+      "timeout_seconds": 10,
+      "expected_status": "sat",
+      "task": {
+        "kind": "synthetic",
+        "status": "sat",
+        "synthetic_wall_time_seconds": 0.04,
+        "model": {"variables": 384, "constraints": 768, "file_size_bytes": 12288}
+      }
+    }
+  }
+]

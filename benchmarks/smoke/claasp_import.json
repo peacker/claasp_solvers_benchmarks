@@ -1,0 +1,34 @@
+{
+  "id": "smoke_claasp_import_sat",
+  "tier": "smoke",
+  "challenge": {
+    "id": "claasp_import_check",
+    "name": "CLAASP import and SAT worker check",
+    "primitive": "Speck-32/64",
+    "primitive_family": "ARX",
+    "goal": "find_one_trail",
+    "analysis": "differential",
+    "model_family": "SAT",
+    "difficulty": "tutorial",
+    "io_mode": "fixed_io",
+    "model_mode": "fixed_model",
+    "parameters": {
+      "rounds": 2,
+      "weight": 3
+    },
+    "tags": ["smoke", "docker", "claasp"]
+  },
+  "execution": {
+    "runner": "docker",
+    "solver": "import-check",
+    "claasp_image": "claasp:latest",
+    "timeout_seconds": 120,
+    "memory_mb": 2048,
+    "expected_status": "sat",
+    "task": {
+      "kind": "claasp_import_check",
+      "status": "sat",
+      "show_solvers": false
+    }
+  }
+}

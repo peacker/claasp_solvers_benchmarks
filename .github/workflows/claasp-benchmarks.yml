@@ -1,0 +1,47 @@
+name: CLAASP Benchmarks
+
+on:
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 2 * * *"
+
+jobs:
+  validate-report-site:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Validate manifests
+        run: python -m claasp_bench validate benchmarks
+      - name: Run synthetic fixture benchmarks
+        run: python -m claasp_bench run benchmarks/fixtures --output results --runner synthetic --fail-on-benchmark-error
+      - name: Generate Markdown report
+        run: python -m claasp_bench report results --output results/report.md
+      - name: Generate static site
+        run: python -m claasp_bench site results --output docs
+      - name: Upload benchmark artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: claasp-benchmark-results
+          path: |
+            results
+            docs
+
+  docker-smoke:
+    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check Docker
+        run: docker version
+      - name: Run CLAASP Docker smoke benchmark
+        run: python -m claasp_bench run benchmarks/smoke --output docker-results --runner docker --fail-on-benchmark-error
+      - name: Upload Docker smoke results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: claasp-docker-smoke-results
+          path: docker-results

@@ -1,0 +1,8 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+results/
+docker-results/
+docs/results.json
+docs/summary.json
+docs/taxonomy.json
