@@ -238,13 +238,15 @@ def _fallback_solver_rows() -> list[dict[str, Any]]:
 
 def _solver_row(family: str, solver: dict[str, Any], source: str) -> dict[str, Any]:
     executable = solver.get("keywords", {}).get("command", {}).get("executable")
+    executables = executable if isinstance(executable, list) else [executable]
+    available = any(shutil.which(item) for item in executables if item)
     return {
         "solver_name": solver.get("solver_name"),
         "solver_brand_name": solver.get("solver_brand_name"),
         "family": family,
         "source": source,
-        "executable": executable,
-        "available": True if source == "internal" else bool(executable and shutil.which(executable)),
+        "executable": _safe_public_value(executable),
+        "available": True if source == "internal" else available,
     }
 
 
