@@ -24,6 +24,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+      - name: Configure GitHub Pages
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        uses: actions/configure-pages@v6
       - name: Validate manifests
         run: python -m claasp_bench validate benchmarks
       - name: Run synthetic fixture benchmarks
@@ -55,7 +58,7 @@ jobs:
     steps:
       - name: Deploy benchmark website
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
 
   docker-smoke:
     runs-on: ubuntu-latest
