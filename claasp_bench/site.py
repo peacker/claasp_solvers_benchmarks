@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import time
 from pathlib import Path
 
 from .results import load_result_records, summarize, write_json
@@ -15,7 +16,7 @@ HTML = """<!doctype html>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>CLAASP Benchmarks</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=__ASSET_VERSION__">
 </head>
 <body>
   <header>
@@ -56,7 +57,7 @@ HTML = """<!doctype html>
       </table>
     </section>
   </main>
-  <script src="app.js"></script>
+  <script src="app.js?v=__ASSET_VERSION__"></script>
 </body>
 </html>
 """
@@ -177,7 +178,8 @@ th {
 }
 """
 
-JS = """const dimensions = ["primitive", "primitive_family", "goal", "analysis", "model_family", "solver", "difficulty", "io_mode", "model_mode"];
+JS = """const assetVersion = "__ASSET_VERSION__";
+const dimensions = ["primitive", "primitive_family", "goal", "analysis", "model_family", "solver", "difficulty", "io_mode", "model_mode"];
 const taxonomyFields = new Set(["primitive_family", "goal", "analysis", "model_family", "difficulty", "io_mode", "model_mode"]);
 const runColumns = [
   ["benchmark", "Benchmark", record => record.benchmark_id],
@@ -397,8 +399,8 @@ function render() {
 }
 
 Promise.all([
-  fetch("results.json").then(response => response.json()),
-  fetch("taxonomy.json").then(response => response.json())
+  fetch(`results.json?v=${assetVersion}`).then(response => response.json()),
+  fetch(`taxonomy.json?v=${assetVersion}`).then(response => response.json())
 ])
   .then(([results, taxonomyData]) => {
     allResults = results;
@@ -412,10 +414,11 @@ Promise.all([
 
 def generate_site(results_dir: Path, output_dir: Path) -> None:
     records = load_result_records(results_dir)
+    asset_version = str(int(time.time()))
     output_dir.mkdir(parents=True, exist_ok=True)
     write_json(output_dir / "results.json", records)
     write_json(output_dir / "summary.json", summarize(records))
     write_json(output_dir / "taxonomy.json", TAXONOMY)
-    (output_dir / "index.html").write_text(HTML, encoding="utf-8")
+    (output_dir / "index.html").write_text(HTML.replace("__ASSET_VERSION__", asset_version), encoding="utf-8")
     (output_dir / "style.css").write_text(CSS, encoding="utf-8")
-    (output_dir / "app.js").write_text(JS, encoding="utf-8")
+    (output_dir / "app.js").write_text(JS.replace("__ASSET_VERSION__", asset_version), encoding="utf-8")
