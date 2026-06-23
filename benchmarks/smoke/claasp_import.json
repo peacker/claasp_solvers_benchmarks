@@ -21,8 +21,8 @@
   "execution": {
     "runner": "docker",
     "solver": "import-check",
-    "claasp_image": "claasp:latest",
-    "timeout_seconds": 120,
+    "claasp_image": "tiicrc/claasp-base:latest",
+    "timeout_seconds": 300,
     "memory_mb": 2048,
     "expected_status": "sat",
     "task": {

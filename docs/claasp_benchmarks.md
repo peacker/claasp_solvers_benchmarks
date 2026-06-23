@@ -32,9 +32,16 @@ python -m claasp_bench report results --output results/report.md
 python -m claasp_bench site results --output docs
 ```
 
-The Docker runner expects a local `claasp:latest` image. It mounts this
-workspace into the container, sets `PYTHONPATH=/workspace/claasp:/workspace`,
-and executes the worker with `sage -python`.
+The Docker runner uses the published CLAASP base image by default:
+
+```text
+tiicrc/claasp-base:latest
+```
+
+This is the `claasp-base` target built from CLAASP's `docker/Dockerfile`. It
+contains the solver and Sage environment, while the CLAASP source tree is
+mounted into the container at runtime. Set `CLAASP_SOURCE_DIR` if the CLAASP
+checkout is not at `./claasp` or `../claasp`.
 
 ## Continuous Benchmark Site
 
@@ -51,10 +58,9 @@ https://peacker.github.io/claasp_solvers_benchmarks/
 Pull requests and non-`main` branch pushes upload the generated site as an
 artifact instead of deploying it.
 
-The optional Docker smoke job is manual-only until the repository has access to
-a published CLAASP image. To enable it, set the repository variable
-`CLAASP_DOCKER_IMAGE` to the image reference to use, then run the workflow with
-`workflow_dispatch`.
+The Docker smoke job uses `tiicrc/claasp-base:latest` by default and checks out
+`Crypto-TII/claasp` during CI. Set the repository variable
+`CLAASP_DOCKER_IMAGE` only if you want to override the image reference.
 
 ## Result Storage
 

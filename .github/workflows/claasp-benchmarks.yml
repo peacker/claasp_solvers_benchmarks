@@ -59,15 +59,23 @@ jobs:
 
   docker-smoke:
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' && vars.CLAASP_DOCKER_IMAGE != ''
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || github.ref == 'refs/heads/main'
+    env:
+      CLAASP_DOCKER_IMAGE: ${{ vars.CLAASP_DOCKER_IMAGE || 'tiicrc/claasp-base:latest' }}
+      CLAASP_SOURCE_DIR: claasp
     steps:
       - uses: actions/checkout@v4
+      - name: Checkout CLAASP source
+        uses: actions/checkout@v4
+        with:
+          repository: Crypto-TII/claasp
+          path: claasp
       - name: Check Docker
         run: docker version
+      - name: Pull CLAASP Docker image
+        run: docker pull "$CLAASP_DOCKER_IMAGE"
       - name: Run CLAASP Docker smoke benchmark
         run: python -m claasp_bench run benchmarks/smoke --output docker-results --runner docker --fail-on-benchmark-error
-        env:
-          CLAASP_DOCKER_IMAGE: ${{ vars.CLAASP_DOCKER_IMAGE }}
       - name: Upload Docker smoke results
         if: always()
         uses: actions/upload-artifact@v4

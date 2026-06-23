@@ -103,11 +103,22 @@ class DockerRunner:
     def __init__(self, workspace: Path | None = None):
         self.workspace = (workspace or Path.cwd()).resolve()
 
+    def _claasp_source_dir(self) -> Path | None:
+        env_path = os.environ.get("CLAASP_SOURCE_DIR")
+        candidates = [Path(env_path).expanduser()] if env_path else []
+        candidates.extend([self.workspace / "claasp", self.workspace.parent / "claasp"])
+        for candidate in candidates:
+            resolved = candidate.resolve()
+            if resolved.exists():
+                return resolved
+        return None
+
     def run(self, benchmark: Benchmark, output_dir: Path) -> dict[str, Any]:
         output_dir.mkdir(parents=True, exist_ok=True)
         result = _base_result(benchmark)
         actual_image = os.environ.get("CLAASP_DOCKER_IMAGE", benchmark.execution.claasp_image)
         result["execution"]["claasp_image"] = actual_image
+        claasp_source_dir = self._claasp_source_dir()
         start_usage = resource.getrusage(resource.RUSAGE_CHILDREN)
         started = time.perf_counter()
         with tempfile.TemporaryDirectory(prefix="claasp-bench-") as tmp:
@@ -124,13 +135,19 @@ class DockerRunner:
                 f"{self.workspace}:/workspace",
                 "-v",
                 f"{tmp}:/bench",
-                "-w",
-                "/workspace",
-                actual_image,
-                "bash",
-                "-lc",
-                f"sage -python -m claasp_bench.worker {container_manifest}",
             ]
+            if claasp_source_dir is not None:
+                command.extend(["-v", f"{claasp_source_dir}:/workspace/claasp"])
+            command.extend(
+                [
+                    "-w",
+                    "/workspace",
+                    actual_image,
+                    "bash",
+                    "-lc",
+                    f"sage -python -m claasp_bench.worker {container_manifest}",
+                ]
+            )
             try:
                 completed = subprocess.run(
                     command,

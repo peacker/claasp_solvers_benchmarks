@@ -33,7 +33,7 @@ class Challenge:
 class Execution:
     runner: str
     solver: str
-    claasp_image: str = "claasp:latest"
+    claasp_image: str = "tiicrc/claasp-base:latest"
     timeout_seconds: int = 600
     memory_mb: int | None = None
     seed: int | None = None
@@ -120,7 +120,7 @@ def benchmark_from_dict(data: dict[str, Any], source_path: str | None = None) ->
     execution = Execution(
         runner=_require_string(execution_data, "runner", "benchmark.execution"),
         solver=_require_string(execution_data, "solver", "benchmark.execution"),
-        claasp_image=execution_data.get("claasp_image", "claasp:latest"),
+        claasp_image=execution_data.get("claasp_image", "tiicrc/claasp-base:latest"),
         timeout_seconds=execution_data.get("timeout_seconds", 600),
         memory_mb=_optional_positive_int(execution_data, "memory_mb"),
         seed=execution_data.get("seed"),
