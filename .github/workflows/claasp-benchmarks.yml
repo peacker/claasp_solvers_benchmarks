@@ -1,10 +1,20 @@
 name: CLAASP Benchmarks
 
 on:
+  push:
   pull_request:
   workflow_dispatch:
   schedule:
     - cron: "17 2 * * *"
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
 
 jobs:
   validate-report-site:
@@ -21,24 +31,43 @@ jobs:
       - name: Generate Markdown report
         run: python -m claasp_bench report results --output results/report.md
       - name: Generate static site
-        run: python -m claasp_bench site results --output docs
+        run: python -m claasp_bench site results --output _site
       - name: Upload benchmark artifacts
         uses: actions/upload-artifact@v4
         with:
           name: claasp-benchmark-results
           path: |
             results
-            docs
+            _site
+      - name: Upload GitHub Pages artifact
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy-pages:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: validate-report-site
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy benchmark website
+        id: deployment
+        uses: actions/deploy-pages@v4
 
   docker-smoke:
     runs-on: ubuntu-latest
-    if: github.event_name != 'pull_request'
+    if: github.event_name == 'workflow_dispatch' && vars.CLAASP_DOCKER_IMAGE != ''
     steps:
       - uses: actions/checkout@v4
       - name: Check Docker
         run: docker version
       - name: Run CLAASP Docker smoke benchmark
         run: python -m claasp_bench run benchmarks/smoke --output docker-results --runner docker --fail-on-benchmark-error
+        env:
+          CLAASP_DOCKER_IMAGE: ${{ vars.CLAASP_DOCKER_IMAGE }}
       - name: Upload Docker smoke results
         if: always()
         uses: actions/upload-artifact@v4

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import platform
 import resource
 import subprocess
@@ -123,7 +124,7 @@ class DockerRunner:
                 f"{tmp}:/bench",
                 "-w",
                 "/workspace",
-                benchmark.execution.claasp_image,
+                os.environ.get("CLAASP_DOCKER_IMAGE", benchmark.execution.claasp_image),
                 "bash",
                 "-lc",
                 f"sage -python -m claasp_bench.worker {container_manifest}",
