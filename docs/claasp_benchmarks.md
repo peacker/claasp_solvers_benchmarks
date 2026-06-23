@@ -46,17 +46,20 @@ checkout is not at `./claasp` or `../claasp`.
 ## Continuous Benchmark Site
 
 Every push runs the fixture benchmark suite, generates `results.jsonl`, renders
-a Markdown report, and builds the static dashboard. Runs on `main` also deploy
-the dashboard with GitHub Pages.
+a Markdown report, and builds the static dashboard. The generated dashboard is
+always uploaded as the `claasp-benchmark-results` workflow artifact.
 
-The public site URL is:
+If the repository is public, runs on `main` also deploy the dashboard with
+GitHub Pages. The public site URL is:
 
 ```text
 https://peacker.github.io/claasp_solvers_benchmarks/
 ```
 
-Pull requests and non-`main` branch pushes upload the generated site as an
-artifact instead of deploying it.
+Private repositories on plans without GitHub Pages support cannot deploy the
+site; in that case, use the uploaded workflow artifact. Pull requests and
+non-`main` branch pushes also upload the generated site as an artifact instead
+of deploying it.
 
 The Docker smoke job uses `tiicrc/claasp-base:latest` by default and checks out
 `Crypto-TII/claasp` during CI. Set the repository variable
