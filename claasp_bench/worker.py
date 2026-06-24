@@ -36,9 +36,33 @@ SOLVER_FAMILY_TO_METHOD = {
     "cp": "MznXorDifferentialModel.find_one_xor_differential_trail",
 }
 TASK_KIND_TO_METHOD = {
-    "claasp_sat_xor_differential_enumerate_fixed_weight": (
-        "SatXorDifferentialModel.find_all_xor_differential_trails_with_fixed_weight"
-    ),
+    "claasp_xor_differential_find_one": {
+        "sat": "SatXorDifferentialModel.find_one_xor_differential_trail",
+        "smt": "SmtXorDifferentialModel.find_one_xor_differential_trail",
+        "milp": "MilpXorDifferentialModel.find_one_xor_differential_trail",
+        "cp": "MznXorDifferentialModel.find_one_xor_differential_trail",
+    },
+    "claasp_sat_xor_differential_find_one": {
+        "sat": "SatXorDifferentialModel.find_one_xor_differential_trail",
+        "smt": "SmtXorDifferentialModel.find_one_xor_differential_trail",
+        "milp": "MilpXorDifferentialModel.find_one_xor_differential_trail",
+        "cp": "MznXorDifferentialModel.find_one_xor_differential_trail",
+    },
+    "claasp_xor_differential_enumerate_fixed_weight": {
+        "sat": "SatXorDifferentialModel.find_all_xor_differential_trails_with_fixed_weight",
+        "smt": "SmtXorDifferentialModel.find_all_xor_differential_trails_with_fixed_weight",
+        "milp": "MilpXorDifferentialModel.find_all_xor_differential_trails_with_fixed_weight",
+        "cp": "MznXorDifferentialModel.find_all_xor_differential_trails_with_fixed_weight",
+    },
+    "claasp_sat_xor_differential_enumerate_fixed_weight": {
+        "sat": "SatXorDifferentialModel.find_all_xor_differential_trails_with_fixed_weight",
+    },
+    "claasp_xor_differential_find_lowest_weight": {
+        "sat": "SatXorDifferentialModel.find_lowest_weight_xor_differential_trail",
+        "smt": "SmtXorDifferentialModel.find_lowest_weight_xor_differential_trail",
+        "milp": "MilpXorDifferentialModel.find_lowest_weight_xor_differential_trail",
+        "cp": "MznXorDifferentialModel.find_lowest_weight_xor_differential_trail",
+    },
 }
 
 
@@ -171,6 +195,31 @@ def _compact_solution(solution: dict[str, Any]) -> dict[str, Any]:
         "test_name",
     ]
     return {key: _safe_public_value(solution.get(key)) for key in keys if key in solution}
+
+
+def _method_name(task_kind: str, solver_family: str | None) -> str | None:
+    method_map = TASK_KIND_TO_METHOD.get(task_kind)
+    if method_map:
+        return method_map.get(solver_family or "sat")
+    return SOLVER_FAMILY_TO_METHOD.get(solver_family or "sat")
+
+
+def _model_class_for_family(solver_family: str | None) -> tuple[Any, str]:
+    if solver_family == "smt":
+        from claasp.cipher_modules.models.smt.smt_models.smt_xor_differential_model import SmtXorDifferentialModel
+
+        return SmtXorDifferentialModel, "SmtXorDifferentialModel"
+    if solver_family == "milp":
+        from claasp.cipher_modules.models.milp.milp_models.milp_xor_differential_model import MilpXorDifferentialModel
+
+        return MilpXorDifferentialModel, "MilpXorDifferentialModel"
+    if solver_family == "cp":
+        from claasp.cipher_modules.models.cp.mzn_models.mzn_xor_differential_model import MznXorDifferentialModel
+
+        return MznXorDifferentialModel, "MznXorDifferentialModel"
+    from claasp.cipher_modules.models.sat.sat_models.sat_xor_differential_model import SatXorDifferentialModel
+
+    return SatXorDifferentialModel, "SatXorDifferentialModel"
 
 
 def _solver_metadata_for(benchmark: Any, solver_name: str, solver_family: str | None) -> dict[str, Any]:
@@ -371,6 +420,111 @@ def _run_claasp_xor_differential_find_one(benchmark: Any, solver_name: str, solv
     return _run_claasp_sat_xor_differential_find_one(benchmark, solver_name)
 
 
+def _run_claasp_xor_differential_enumerate_fixed_weight(
+    benchmark: Any, solver_name: str, solver_family: str | None
+) -> dict[str, Any]:
+    model_class, class_name = _model_class_for_family(solver_family)
+    method_name = _method_name("claasp_xor_differential_enumerate_fixed_weight", solver_family)
+    parameters = dict(benchmark.challenge.parameters)
+    parameters.update(benchmark.execution.task.get("cipher_parameters", {}))
+    fixed_weight = int(benchmark.execution.task.get("fixed_weight", parameters.get("weight", 0)))
+    cipher_start = time.perf_counter()
+    cipher = _instantiate_cipher(benchmark.challenge.primitive, parameters)
+    cipher_build_time = round(time.perf_counter() - cipher_start, 6)
+    model = model_class(cipher)
+    kwargs: dict[str, Any] = {}
+    if solver_family == "cp":
+        kwargs["timelimit"] = benchmark.execution.task.get("solver_timeout_seconds")
+    started = time.perf_counter()
+    solutions = model.find_all_xor_differential_trails_with_fixed_weight(
+        fixed_weight, solver_name=solver_name, **kwargs
+    )
+    enumeration_time = round(time.perf_counter() - started, 6)
+    solutions = _safe_public_value(solutions)
+    if isinstance(solutions, dict):
+        solutions = [solutions]
+    variables = getattr(model, "_variables_list", None) or getattr(model, "_variables_declarations", None)
+    constraints = getattr(model, "_model_constraints", None)
+    first_solution = solutions[0] if solutions else {}
+    solve_times = [
+        solution.get("solving_time_seconds")
+        for solution in solutions
+        if isinstance(solution, dict) and isinstance(solution.get("solving_time_seconds"), numbers.Real)
+    ]
+    memories = [
+        solution.get("memory_megabytes")
+        for solution in solutions
+        if isinstance(solution, dict) and isinstance(solution.get("memory_megabytes"), numbers.Real)
+    ]
+    build_time = first_solution.get("building_time_seconds", first_solution.get("building_time")) if isinstance(first_solution, dict) else None
+    return {
+        "status": "sat" if solutions else "unsat",
+        "cipher": _cipher_metadata(cipher, parameters),
+        "timing": {
+            "cipher_build_time_seconds": cipher_build_time,
+            "build_time_seconds": build_time,
+            "solve_time_seconds": sum(solve_times) if solve_times else None,
+            "enumeration_time_seconds": enumeration_time,
+        },
+        "resources": {"peak_memory_mb": max(memories) if memories else None},
+        "model": {
+            "variables": len(variables) if variables is not None else None,
+            "constraints": len(constraints) if constraints is not None else None,
+        },
+        "claasp_output": {
+            "version": _claasp_version(),
+            "cipher_class": class_name,
+            "method_name": method_name,
+        },
+        "solver_output": {
+            "enumerated_trails": len(solutions),
+            "fixed_weight": fixed_weight,
+            "first_solution": _compact_solution(first_solution) if isinstance(first_solution, dict) else {},
+        },
+    }
+
+
+def _run_claasp_xor_differential_find_lowest_weight(
+    benchmark: Any, solver_name: str, solver_family: str | None
+) -> dict[str, Any]:
+    model_class, class_name = _model_class_for_family(solver_family)
+    method_name = _method_name("claasp_xor_differential_find_lowest_weight", solver_family)
+    parameters = dict(benchmark.challenge.parameters)
+    parameters.update(benchmark.execution.task.get("cipher_parameters", {}))
+    cipher_start = time.perf_counter()
+    cipher = _instantiate_cipher(benchmark.challenge.primitive, parameters)
+    cipher_build_time = round(time.perf_counter() - cipher_start, 6)
+    model = model_class(cipher)
+    kwargs: dict[str, Any] = {}
+    if solver_family == "cp":
+        kwargs["timelimit"] = benchmark.execution.task.get("solver_timeout_seconds")
+    solution = model.find_lowest_weight_xor_differential_trail(solver_name=solver_name, **kwargs)
+    solution = _safe_public_value(solution)
+    variables = getattr(model, "_variables_list", None) or getattr(model, "_variables_declarations", None)
+    constraints = getattr(model, "_model_constraints", None)
+    return {
+        "status": _normalise_status(solution.get("status")),
+        "cipher": _cipher_metadata(cipher, parameters),
+        "timing": {
+            "cipher_build_time_seconds": cipher_build_time,
+            "build_time_seconds": solution.get("building_time_seconds", solution.get("building_time")),
+            "solve_time_seconds": solution.get("solving_time_seconds"),
+            "proof_time_seconds": solution.get("solving_time_seconds"),
+        },
+        "resources": {"peak_memory_mb": solution.get("memory_megabytes")},
+        "model": {
+            "variables": len(variables) if variables is not None else None,
+            "constraints": len(constraints) if constraints is not None else None,
+        },
+        "claasp_output": {
+            "version": _claasp_version(),
+            "cipher_class": class_name,
+            "method_name": method_name,
+        },
+        "solver_output": _compact_solution(solution),
+    }
+
+
 def _available_solver_rows(benchmark: Any) -> list[dict[str, Any]]:
     families = benchmark.execution.task.get("solver_families")
     family = benchmark.execution.task.get("solver_family") or MODEL_FAMILY_TO_SOLVER_FAMILY.get(
@@ -516,7 +670,7 @@ def run_worker(manifest_path: Path, result_path: Path) -> int:
     task = benchmark.execution.task
     result["execution"]["machine"].update(_machine_metadata())
     task_kind = task.get("kind", "claasp_import_check")
-    if benchmark.execution.solver == "all_available" and task_kind == "claasp_sat_xor_differential_find_one":
+    if benchmark.execution.solver == "all_available" and task_kind in TASK_KIND_TO_METHOD:
         expanded_results = []
         for row in _available_solver_rows(benchmark):
             solver_family = row.get("family")
@@ -526,7 +680,7 @@ def run_worker(manifest_path: Path, result_path: Path) -> int:
                 solver_family, item["challenge"]["model_family"]
             )
             item["execution"]["solver"] = row.get("solver_name")
-            item["execution"]["claasp_method"] = SOLVER_FAMILY_TO_METHOD.get(solver_family)
+            item["execution"]["claasp_method"] = _method_name(task_kind, solver_family)
             item["execution"]["machine"].update(_machine_metadata())
             solver_started = time.perf_counter()
             solver_usage = resource.getrusage(resource.RUSAGE_SELF)
@@ -557,7 +711,7 @@ def run_worker(manifest_path: Path, result_path: Path) -> int:
                 item["claasp_output"].update(
                     {
                         "version": _claasp_version(),
-                        "method_name": SOLVER_FAMILY_TO_METHOD.get(solver_family),
+                        "method_name": _method_name(task_kind, solver_family),
                     }
                 )
                 item["solver_output"].update(
@@ -580,7 +734,7 @@ def run_worker(manifest_path: Path, result_path: Path) -> int:
                 item["claasp_output"].update(
                     {
                         "version": _claasp_version(),
-                        "method_name": SOLVER_FAMILY_TO_METHOD.get(solver_family),
+                        "method_name": _method_name(task_kind, solver_family),
                     }
                 )
                 item["solver_output"].update(
@@ -614,11 +768,15 @@ def run_worker(manifest_path: Path, result_path: Path) -> int:
                 MODEL_FAMILY_TO_SOLVER_FAMILY.get(benchmark.challenge.model_family),
                 task.get("solver_timeout_seconds"),
             )
-        elif task_kind == "claasp_sat_xor_differential_enumerate_fixed_weight":
+        elif task_kind in {
+            "claasp_sat_xor_differential_enumerate_fixed_weight",
+            "claasp_xor_differential_enumerate_fixed_weight",
+            "claasp_xor_differential_find_lowest_weight",
+        }:
             details = _run_solver_with_timeout(
                 benchmark,
                 benchmark.execution.solver,
-                "sat",
+                MODEL_FAMILY_TO_SOLVER_FAMILY.get(benchmark.challenge.model_family, "sat"),
                 task.get("solver_timeout_seconds"),
             )
         elif task_kind == "synthetic":
@@ -650,7 +808,7 @@ def run_worker(manifest_path: Path, result_path: Path) -> int:
                 row.get("family"), item["challenge"]["model_family"]
             )
             item["execution"]["solver"] = row.get("solver_name")
-            item["execution"]["claasp_method"] = SOLVER_FAMILY_TO_METHOD.get(row.get("family"))
+            item["execution"]["claasp_method"] = _method_name(task_kind, row.get("family"))
             item["solver_output"].update(
                 {
                     "solver_name": row.get("solver_name"),
@@ -696,6 +854,10 @@ def _run_solver_task(benchmark: Any, solver_name: str, solver_family: str | None
     task_kind = benchmark.execution.task.get("kind")
     if task_kind == "claasp_sat_xor_differential_enumerate_fixed_weight":
         return _run_claasp_sat_xor_differential_enumerate_fixed_weight(benchmark, solver_name)
+    if task_kind == "claasp_xor_differential_enumerate_fixed_weight":
+        return _run_claasp_xor_differential_enumerate_fixed_weight(benchmark, solver_name, solver_family)
+    if task_kind == "claasp_xor_differential_find_lowest_weight":
+        return _run_claasp_xor_differential_find_lowest_weight(benchmark, solver_name, solver_family)
     return _run_claasp_xor_differential_find_one(benchmark, solver_name, solver_family)
 
 

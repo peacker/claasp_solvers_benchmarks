@@ -21,17 +21,22 @@ HTML = """<!doctype html>
 <body>
   <header>
     <h1>CLAASP Solver Benchmarks</h1>
-    <p>Filter by challenge goal, primitive family, analysis, model family, and difficulty.</p>
+    <p>Filter by primitive, CLAASP method, model family, solver, status, and duration.</p>
   </header>
   <main>
-    <section id="filters" aria-label="Benchmark filters"></section>
+    <section class="filter-panel" aria-label="Benchmark filters">
+      <h2>Filters</h2>
+      <div id="filters"></div>
+    </section>
     <nav class="tabs" aria-label="Views">
       <button class="tab-button active" type="button" data-tab="summary-panel">Benchmark Summary</button>
       <button class="tab-button" type="button" data-tab="database-panel">Full Database</button>
     </nav>
     <section id="summary-panel" class="tab-panel active">
       <section class="summary">
+        <h2 class="section-heading">Stats</h2>
         <div><strong id="count">0</strong><span>runs</span></div>
+        <div><strong id="total-wall">-</strong><span>total wall time</span></div>
         <div><strong id="best">-</strong><span>best time</span></div>
         <div><strong id="median">-</strong><span>median time</span></div>
         <div><strong id="statuses">-</strong><span>statuses</span></div>
@@ -39,7 +44,13 @@ HTML = """<!doctype html>
       <table id="summary-table">
           <thead>
             <tr>
-              <th>Instance</th><th>Runs</th><th>Solvers</th><th>Statuses</th><th>Total Wall</th><th>Best Wall</th><th>Median Wall</th>
+              <th title="Cipher, parameters, CLAASP method, and analysis defining this benchmark instance.">Instance</th>
+              <th title="Number of run records in this summary group after filters are applied.">Runs</th>
+              <th title="Solvers represented in this summary group.">Solvers</th>
+              <th title="Status counts for this summary group.">Statuses</th>
+              <th title="Sum of wall-clock time for all runs in this summary group.">Total Wall</th>
+              <th title="Fastest wall-clock time in this summary group.">Best Wall</th>
+              <th title="Median wall-clock time in this summary group.">Median Wall</th>
             </tr>
           </thead>
           <tbody id="summary-rows"></tbody>
@@ -102,11 +113,20 @@ p {
   margin: 0;
   color: #57606f;
 }
+.section-heading {
+  grid-column: 1 / -1;
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: #f7f8fa;
+}
+.filter-panel {
+  margin-bottom: 16px;
+}
 #filters {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
   gap: 12px;
-  margin-bottom: 16px;
 }
 label {
   display: grid;
@@ -169,6 +189,13 @@ button {
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 18px;
   align-items: start;
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  width: fit-content;
+  min-width: 100%;
+  background: #f7f8fa;
+  padding-bottom: 8px;
 }
 .display-controls {
   display: flex;
@@ -277,8 +304,38 @@ th {
 """
 
 JS = """const assetVersion = "__ASSET_VERSION__";
-const dimensions = ["primitive", "primitive_family", "goal", "analysis", "model_family", "solver", "difficulty", "io_mode", "model_mode"];
-const taxonomyFields = new Set(["primitive_family", "goal", "analysis", "model_family", "difficulty", "io_mode", "model_mode"]);
+const dimensions = [
+  ["primitive", "Primitive", record => record.challenge.primitive],
+  ["primitive_family", "Primitive Family", record => record.challenge.primitive_family],
+  ["claasp_method", "CLAASP Method", record => record.execution.claasp_method],
+  ["model_family", "Model", record => record.challenge.model_family],
+  ["solver", "Solver", record => record.execution.solver],
+  ["duration", "Duration", record => durationBucket(record.timing.wall_time_seconds)],
+  ["status", "Status", record => record.status],
+];
+const columnDescriptions = {
+  benchmark: "Stable run identifier emitted by the benchmark runner.",
+  primitive: "Concrete cipher or primitive under test.",
+  cipher_parameters: "Cipher parameters reported by CLAASP, such as rounds, block size, and key size.",
+  architecture: "CPU, usable cores, platform, and runtime architecture used for the run.",
+  claasp_method: "CLAASP model method invoked for this run.",
+  goal: "Taxonomy goal recorded in the benchmark manifest.",
+  analysis: "Cryptanalytic analysis family recorded in the benchmark manifest.",
+  model: "CLAASP modeling family used for this run.",
+  solver: "Solver/backend used for this run.",
+  solver_version: "Solver version detected from the executable, when available.",
+  solver_options: "Executable, options, selector, and command format used to call the solver.",
+  status: "Normalized run status.",
+  build: "Model building time reported by CLAASP, when available.",
+  solve: "Solver time reported by CLAASP, when available.",
+  wall: "End-to-end wall-clock time measured by the benchmark runner.",
+  memory: "Peak memory in MB, preferring CLAASP/solver data when available.",
+  model_size: "Model size fields such as variables, constraints, clauses, and generated file size.",
+  claasp_output: "CLAASP metadata and method-specific fields.",
+  solver_output: "Solver-specific metadata and output fields.",
+  error: "Error details when a run fails or times out.",
+  artifacts: "Captured stdout/stderr excerpts and worker details.",
+};
 const runColumns = [
   ["benchmark", "Benchmark", record => record.benchmark_id],
   ["primitive", "Primitive", record => record.challenge.primitive],
@@ -338,6 +395,14 @@ function fmtMemory(value) {
   return value === null || value === undefined ? "NA" : `${Number(value).toFixed(1)} MB`;
 }
 
+function durationBucket(value) {
+  if (typeof value !== "number") return "NA";
+  if (value < 1) return "t < 1s";
+  if (value < 60) return "1s <= t < 1m";
+  if (value < 3600) return "1m <= t < 1h";
+  return "t >= 1h";
+}
+
 function cipherParameters(record) {
   const cipher = record.cipher || {};
   const parameters = {...(cipher.parameters || {})};
@@ -377,19 +442,18 @@ function median(values) {
   return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 }
 
-function fieldValue(record, field) {
-  return field === "solver" ? record.execution.solver : record.challenge[field];
+function fieldValue(record, fieldId) {
+  const dimension = dimensions.find(([id]) => id === fieldId);
+  return dimension ? dimension[2](record) : "";
 }
 
 function buildFilters() {
   const filters = document.getElementById("filters");
   filters.innerHTML = "";
-  for (const field of dimensions) {
-    const values = taxonomyFields.has(field)
-      ? [...(taxonomy[field] || [])]
-      : [...new Set(allResults.map(record => fieldValue(record, field)).filter(Boolean))].sort();
+  for (const [field, labelText, getter] of dimensions) {
+    const values = [...new Set(allResults.map(record => getter(record)).filter(Boolean))].sort();
     const label = document.createElement("label");
-    label.textContent = field.replaceAll("_", " ");
+    label.textContent = labelText;
     const select = document.createElement("select");
     select.id = `filter-${field}`;
     select.innerHTML = `<option value="">All</option>` + values.map(value => `<option>${value}</option>`).join("");
@@ -401,8 +465,8 @@ function buildFilters() {
 
 function filteredResults() {
   return allResults.filter(record => dimensions.every(field => {
-    const selected = document.getElementById(`filter-${field}`).value;
-    return !selected || fieldValue(record, field) === selected;
+    const selected = document.getElementById(`filter-${field[0]}`).value;
+    return !selected || field[2](record) === selected;
   }));
 }
 
@@ -445,6 +509,7 @@ function buildDisplayControls() {
   document.querySelectorAll(".display-button").forEach(button => {
     button.addEventListener("click", () => {
       displayMode = button.dataset.mode;
+      if (displayMode === "compact") columnWidths = {};
       document.querySelectorAll(".display-button").forEach(item => item.classList.remove("active"));
       button.classList.add("active");
       document.getElementById("runs-table").className = displayMode;
@@ -463,7 +528,7 @@ function renderHeader() {
     <col data-column="${id}" style="${displayMode === "expanded" ? "" : `width: ${columnWidths[id] || `${minColumnWidth(runColumns.find(([columnId]) => columnId === id)[1])}px`}`}">
   `).join("");
   document.getElementById("runs-header").innerHTML = active.map(([id, label]) => `
-    <th class="resizable-th" data-column="${id}">${escapeHtml(label)}<span class="resize-handle" data-column="${id}"></span></th>
+    <th class="resizable-th" data-column="${id}" title="${escapeHtml(columnDescriptions[id] || label)}">${escapeHtml(label)}<span class="resize-handle" data-column="${id}"></span></th>
   `).join("");
   document.querySelectorAll(".resize-handle").forEach(handle => {
     handle.addEventListener("mousedown", startResize);
@@ -525,6 +590,7 @@ function render() {
     return counts;
   }, {});
   document.getElementById("count").textContent = records.length;
+  document.getElementById("total-wall").textContent = durations.length ? fmtSeconds(durations.reduce((total, value) => total + value, 0)) : "-";
   document.getElementById("best").textContent = durations.length ? fmtSeconds(Math.min(...durations)) : "-";
   document.getElementById("median").textContent = fmtSeconds(median(durations));
   document.getElementById("statuses").textContent = Object.entries(statusCounts).map(([k, v]) => `${k}: ${v}`).join(", ") || "-";
