@@ -25,30 +25,42 @@ HTML = """<!doctype html>
   </header>
   <main>
     <section id="filters" aria-label="Benchmark filters"></section>
-    <section>
-      <h2>Columns</h2>
-      <div id="column-controls" class="column-controls" aria-label="Column controls"></div>
-    </section>
-    <section class="summary">
-      <div><strong id="count">0</strong><span>runs</span></div>
-      <div><strong id="best">-</strong><span>best time</span></div>
-      <div><strong id="median">-</strong><span>median time</span></div>
-      <div><strong id="statuses">-</strong><span>statuses</span></div>
-    </section>
-    <section>
-      <h2>Benchmark Summary</h2>
+    <nav class="tabs" aria-label="Views">
+      <button class="tab-button active" type="button" data-tab="summary-panel">Benchmark Summary</button>
+      <button class="tab-button" type="button" data-tab="database-panel">Full Database</button>
+    </nav>
+    <section id="summary-panel" class="tab-panel active">
+      <section class="summary">
+        <div><strong id="count">0</strong><span>runs</span></div>
+        <div><strong id="best">-</strong><span>best time</span></div>
+        <div><strong id="median">-</strong><span>median time</span></div>
+        <div><strong id="statuses">-</strong><span>statuses</span></div>
+      </section>
       <table id="summary-table">
-        <thead>
-          <tr>
-            <th>Instance</th><th>Runs</th><th>Solvers</th><th>Statuses</th><th>Best Wall</th><th>Median Wall</th>
-          </tr>
-        </thead>
-        <tbody id="summary-rows"></tbody>
-      </table>
+          <thead>
+            <tr>
+              <th>Instance</th><th>Runs</th><th>Solvers</th><th>Statuses</th><th>Best Wall</th><th>Median Wall</th>
+            </tr>
+          </thead>
+          <tbody id="summary-rows"></tbody>
+        </table>
     </section>
-    <section>
-      <h2>Runs</h2>
-      <table id="runs-table">
+    <section id="database-panel" class="tab-panel">
+      <div class="toolbar">
+        <section>
+          <h2>Columns</h2>
+          <div id="column-controls" class="column-controls" aria-label="Column controls"></div>
+        </section>
+        <section>
+          <h2>Display</h2>
+          <div class="display-controls" aria-label="Cell display mode">
+            <button type="button" class="display-button active" data-mode="compact">Compact</button>
+            <button type="button" class="display-button" data-mode="wrap">Wrap Cells</button>
+            <button type="button" class="display-button" data-mode="expanded">Expand Lines</button>
+          </div>
+        </section>
+      </div>
+      <table id="runs-table" class="compact">
         <colgroup id="runs-colgroup"></colgroup>
         <thead>
           <tr id="runs-header"></tr>
@@ -57,6 +69,7 @@ HTML = """<!doctype html>
       </table>
     </section>
   </main>
+  <textarea id="cell-tooltip" readonly aria-hidden="true"></textarea>
   <script src="app.js?v=__ASSET_VERSION__"></script>
 </body>
 </html>
@@ -120,6 +133,48 @@ select {
   background: #ffffff;
   padding: 6px 8px;
 }
+.tabs {
+  display: flex;
+  gap: 8px;
+  margin: 14px 0;
+  border-bottom: 1px solid #dfe4ea;
+}
+button {
+  min-height: 34px;
+  border: 1px solid #ced6e0;
+  border-radius: 6px;
+  background: #ffffff;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+.tab-button {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  border-bottom-color: transparent;
+}
+.tab-button.active,
+.display-button.active {
+  background: #17202a;
+  border-color: #17202a;
+  color: #ffffff;
+}
+.tab-panel {
+  display: none;
+}
+.tab-panel.active {
+  display: block;
+}
+.toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 18px;
+  align-items: start;
+}
+.display-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
 .summary {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
@@ -143,7 +198,8 @@ section {
   overflow-x: auto;
 }
 table {
-  width: 100%;
+  width: max-content;
+  min-width: 100%;
   table-layout: fixed;
   border-collapse: collapse;
   background: #ffffff;
@@ -157,6 +213,22 @@ th, td {
   overflow: hidden;
   text-overflow: ellipsis;
   vertical-align: top;
+}
+#runs-table.compact td {
+  white-space: nowrap;
+}
+#runs-table.wrap td {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}
+#runs-table.expanded {
+  table-layout: auto;
+}
+#runs-table.expanded td {
+  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
 }
 th {
   background: #f1f3f5;
@@ -176,6 +248,27 @@ th {
   cursor: col-resize;
   user-select: none;
 }
+#cell-tooltip {
+  display: none;
+  position: fixed;
+  z-index: 10;
+  width: min(620px, calc(100vw - 32px));
+  min-height: 96px;
+  max-height: 240px;
+  padding: 10px;
+  border: 1px solid #a4b0be;
+  border-radius: 6px;
+  background: #ffffff;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.16);
+  color: #17202a;
+  font: 12px ui-monospace, SFMono-Regular, Menlo, monospace;
+  resize: both;
+}
+@media (max-width: 760px) {
+  .toolbar {
+    grid-template-columns: 1fr;
+  }
+}
 """
 
 JS = """const assetVersion = "__ASSET_VERSION__";
@@ -191,6 +284,8 @@ const runColumns = [
   ["analysis", "Analysis", record => record.challenge.analysis],
   ["model", "Model", record => record.challenge.model_family],
   ["solver", "Solver", record => record.execution.solver],
+  ["solver_version", "Solver Version", record => (record.solver_output || {}).solver_version],
+  ["solver_options", "Solver Options", record => solverOptions(record)],
   ["status", "Status", record => record.status],
   ["build", "Build", record => fmtSeconds(record.timing.build_time_seconds)],
   ["solve", "Solve", record => fmtSeconds(record.timing.solve_time_seconds)],
@@ -206,6 +301,7 @@ let allResults = [];
 let taxonomy = {};
 let visibleColumns = new Set(runColumns.map(([id]) => id));
 let columnWidths = {};
+let displayMode = "compact";
 
 function escapeHtml(value) {
   return String(value)
@@ -250,6 +346,16 @@ function cipherParameters(record) {
 
 function modelSize(record) {
   return fmtValue(record.model || {});
+}
+
+function solverOptions(record) {
+  const output = record.solver_output || {};
+  return fmtValue({
+    executable: output.solver_executable,
+    options: output.solver_options,
+    selector: output.solver_selector,
+    format: output.solver_command_format,
+  });
 }
 
 function architecture(record) {
@@ -319,11 +425,36 @@ function buildColumnControls() {
   });
 }
 
+function buildTabs() {
+  document.querySelectorAll(".tab-button").forEach(button => {
+    button.addEventListener("click", () => {
+      document.querySelectorAll(".tab-button").forEach(item => item.classList.remove("active"));
+      document.querySelectorAll(".tab-panel").forEach(item => item.classList.remove("active"));
+      button.classList.add("active");
+      document.getElementById(button.dataset.tab).classList.add("active");
+    });
+  });
+}
+
+function buildDisplayControls() {
+  document.querySelectorAll(".display-button").forEach(button => {
+    button.addEventListener("click", () => {
+      displayMode = button.dataset.mode;
+      document.querySelectorAll(".display-button").forEach(item => item.classList.remove("active"));
+      button.classList.add("active");
+      document.getElementById("runs-table").className = displayMode;
+    });
+  });
+}
+
+function minColumnWidth(label) {
+  return Math.max(88, Math.ceil(label.length * 8.2) + 34);
+}
+
 function renderHeader() {
   const active = runColumns.filter(([id]) => visibleColumns.has(id));
-  const percent = active.length ? `${100 / active.length}%` : "100%";
   document.getElementById("runs-colgroup").innerHTML = active.map(([id]) => `
-    <col data-column="${id}" style="width: ${columnWidths[id] || percent}">
+    <col data-column="${id}" style="width: ${columnWidths[id] || `${minColumnWidth(runColumns.find(([columnId]) => columnId === id)[1])}px`}">
   `).join("");
   document.getElementById("runs-header").innerHTML = active.map(([id, label]) => `
     <th class="resizable-th" data-column="${id}">${escapeHtml(label)}<span class="resize-handle" data-column="${id}"></span></th>
@@ -395,9 +526,38 @@ function render() {
   const active = runColumns.filter(([id]) => visibleColumns.has(id));
   document.getElementById("rows").innerHTML = records.map(record => `
     <tr>
-      ${active.map(([, , getter]) => `<td>${escapeHtml(fmtValue(getter(record)))}</td>`).join("")}
+      ${active.map(([, , getter]) => {
+        const value = fmtValue(getter(record));
+        return `<td data-full="${escapeHtml(value)}">${escapeHtml(value)}</td>`;
+      }).join("")}
     </tr>
   `).join("");
+  bindCellTooltips();
+}
+
+function bindCellTooltips() {
+  const tooltip = document.getElementById("cell-tooltip");
+  document.querySelectorAll("#runs-table td").forEach(cell => {
+    cell.addEventListener("mouseenter", event => {
+      tooltip.value = event.currentTarget.dataset.full || "";
+      tooltip.style.display = "block";
+      tooltip.setAttribute("aria-hidden", "false");
+      moveTooltip(event);
+    });
+    cell.addEventListener("mousemove", moveTooltip);
+    cell.addEventListener("mouseleave", () => {
+      tooltip.style.display = "none";
+      tooltip.setAttribute("aria-hidden", "true");
+    });
+  });
+}
+
+function moveTooltip(event) {
+  const tooltip = document.getElementById("cell-tooltip");
+  const left = Math.min(event.clientX + 14, window.innerWidth - tooltip.offsetWidth - 16);
+  const top = Math.min(event.clientY + 14, window.innerHeight - tooltip.offsetHeight - 16);
+  tooltip.style.left = `${Math.max(12, left)}px`;
+  tooltip.style.top = `${Math.max(12, top)}px`;
 }
 
 Promise.all([
@@ -408,7 +568,9 @@ Promise.all([
     allResults = results;
     taxonomy = taxonomyData;
     buildFilters();
+    buildTabs();
     buildColumnControls();
+    buildDisplayControls();
     render();
   });
 """

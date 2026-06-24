@@ -4,6 +4,8 @@ __pycache__/
 results/
 docker-results/
 *_sat_input.cnf
+*.lp
+*.log
 docs/results.json
 docs/summary.json
 docs/taxonomy.json

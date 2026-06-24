@@ -76,9 +76,10 @@ static faceted browser suitable for GitHub Pages.
 
 Each result records the benchmark taxonomy, CLAASP cipher parameters, execution
 architecture, build/solve/wall-clock timings, peak memory, model size fields,
-CLAASP metadata, and solver-specific output when available. Missing fields are
-reported as `NA` in the human-readable report and dashboard.
+CLAASP metadata, solver versions, solver command options, and solver-specific
+output when available. Missing fields are reported as `NA` in the
+human-readable report and dashboard.
 
-The dashboard includes per-instance summaries grouped by cipher, parameters,
-CLAASP method, and analysis. Run-table columns can be shown/hidden with the
-checkbox list and resized by dragging column headers.
+The dashboard separates the benchmark summary and full database into tabs. The
+full database supports column show/hide controls, compact/wrapped/expanded cell
+display modes, hover text for full cell values, and resizable columns.

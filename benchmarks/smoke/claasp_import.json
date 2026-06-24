@@ -1,14 +1,14 @@
 {
-  "id": "smoke_claasp_import_sat",
+  "id": "smoke_speck_xor_differential_find_one_all_models",
   "tier": "smoke",
   "challenge": {
-    "id": "claasp_import_check",
-    "name": "CLAASP import and SAT worker check",
+    "id": "speck_xor_differential_find_one",
+    "name": "Speck XOR differential find-one solver sweep",
     "primitive": "Speck-32/64",
     "primitive_family": "ARX",
     "goal": "find_one_trail",
     "analysis": "differential",
-    "model_family": "SAT",
+    "model_family": "hybrid",
     "difficulty": "tutorial",
     "io_mode": "fixed_io",
     "model_mode": "fixed_model",
@@ -33,6 +33,7 @@
       "status": "sat",
       "show_solvers": false,
       "available_only": true,
+      "solver_families": ["sat", "smt", "milp", "cp"],
       "solver_source": "external",
       "solver_timeout_seconds": 30
     }

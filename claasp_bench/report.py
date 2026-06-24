@@ -58,8 +58,8 @@ def markdown_report(results_dir: Path) -> str:
         f"Best wall time: {_fmt_seconds(summary['best_wall_time_seconds'])}",
         f"Median wall time: {_fmt_seconds(summary['median_wall_time_seconds'])}",
         "",
-        "| Benchmark | Primitive | Cipher Parameters | Architecture | CLAASP Method | Goal | Analysis | Model | Solver | Status | Build | Solve | Wall | Memory | Model Size | CLAASP Output | Solver Output | Error | Artifacts |",
-        "|---|---|---|---|---|---|---|---|---|---|---:|---:|---:|---:|---|---|---|---|---|",
+        "| Benchmark | Primitive | Cipher Parameters | Architecture | CLAASP Method | Goal | Analysis | Model | Solver | Solver Version | Solver Options | Status | Build | Solve | Wall | Memory | Model Size | CLAASP Output | Solver Output | Error | Artifacts |",
+        "|---|---|---|---|---|---|---|---|---|---|---|---|---:|---:|---:|---:|---|---|---|---|---|",
     ]
     for record in sorted(records, key=lambda item: item["benchmark_id"]):
         challenge = record["challenge"]
@@ -68,7 +68,7 @@ def markdown_report(results_dir: Path) -> str:
         model = record.get("model", {})
         lines.append(
             "| {benchmark} | {primitive} | {params} | {arch} | {method} | {goal} | {analysis} | {model_family} | {solver} | "
-            "{status} | {build} | {solve} | {wall} | {memory} | {model_size} | {claasp_output} | {solver_output} | "
+            "{solver_version} | {solver_options} | {status} | {build} | {solve} | {wall} | {memory} | {model_size} | {claasp_output} | {solver_output} | "
             "{error} | {artifacts} |".format(
                 benchmark=record["benchmark_id"],
                 primitive=challenge["primitive"],
@@ -79,6 +79,15 @@ def markdown_report(results_dir: Path) -> str:
                 analysis=challenge["analysis"],
                 model_family=challenge["model_family"],
                 solver=execution["solver"],
+                solver_version=_fmt_value(record.get("solver_output", {}).get("solver_version")),
+                solver_options=_fmt_value(
+                    {
+                        "executable": record.get("solver_output", {}).get("solver_executable"),
+                        "options": record.get("solver_output", {}).get("solver_options"),
+                        "selector": record.get("solver_output", {}).get("solver_selector"),
+                        "format": record.get("solver_output", {}).get("solver_command_format"),
+                    }
+                ),
                 status=record["status"],
                 build=_fmt_seconds(record["timing"].get("build_time_seconds")),
                 solve=_fmt_seconds(record["timing"].get("solve_time_seconds")),
