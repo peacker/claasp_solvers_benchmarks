@@ -63,6 +63,24 @@ TASK_KIND_TO_METHOD = {
         "milp": "MilpXorDifferentialModel.find_lowest_weight_xor_differential_trail",
         "cp": "MznXorDifferentialModel.find_lowest_weight_xor_differential_trail",
     },
+    "claasp_xor_linear_find_one": {
+        "sat": "SatXorLinearModel.find_one_xor_linear_trail",
+        "smt": "SmtXorLinearModel.find_one_xor_linear_trail",
+        "milp": "MilpXorLinearModel.find_one_xor_linear_trail",
+        "cp": "MznXorLinearModel.find_one_xor_linear_trail",
+    },
+    "claasp_xor_linear_enumerate_fixed_weight": {
+        "sat": "SatXorLinearModel.find_all_xor_linear_trails_with_fixed_weight",
+        "smt": "SmtXorLinearModel.find_all_xor_linear_trails_with_fixed_weight",
+        "milp": "MilpXorLinearModel.find_all_xor_linear_trails_with_fixed_weight",
+        "cp": "MznXorLinearModel.find_all_xor_linear_trails_with_fixed_weight",
+    },
+    "claasp_xor_linear_find_lowest_weight": {
+        "sat": "SatXorLinearModel.find_lowest_weight_xor_linear_trail",
+        "smt": "SmtXorLinearModel.find_lowest_weight_xor_linear_trail",
+        "milp": "MilpXorLinearModel.find_lowest_weight_xor_linear_trail",
+        "cp": "MznXorLinearModel.find_lowest_weight_xor_linear_trail",
+    },
 }
 
 
@@ -220,6 +238,24 @@ def _model_class_for_family(solver_family: str | None) -> tuple[Any, str]:
     from claasp.cipher_modules.models.sat.sat_models.sat_xor_differential_model import SatXorDifferentialModel
 
     return SatXorDifferentialModel, "SatXorDifferentialModel"
+
+
+def _linear_model_class_for_family(solver_family: str | None) -> tuple[Any, str]:
+    if solver_family == "smt":
+        from claasp.cipher_modules.models.smt.smt_models.smt_xor_linear_model import SmtXorLinearModel
+
+        return SmtXorLinearModel, "SmtXorLinearModel"
+    if solver_family == "milp":
+        from claasp.cipher_modules.models.milp.milp_models.milp_xor_linear_model import MilpXorLinearModel
+
+        return MilpXorLinearModel, "MilpXorLinearModel"
+    if solver_family == "cp":
+        from claasp.cipher_modules.models.cp.mzn_models.mzn_xor_linear_model import MznXorLinearModel
+
+        return MznXorLinearModel, "MznXorLinearModel"
+    from claasp.cipher_modules.models.sat.sat_models.sat_xor_linear_model import SatXorLinearModel
+
+    return SatXorLinearModel, "SatXorLinearModel"
 
 
 def _solver_metadata_for(benchmark: Any, solver_name: str, solver_family: str | None) -> dict[str, Any]:
@@ -525,6 +561,153 @@ def _run_claasp_xor_differential_find_lowest_weight(
     }
 
 
+def _linear_solver_kwargs(benchmark: Any, solver_family: str | None) -> dict[str, Any]:
+    kwargs: dict[str, Any] = {}
+    if solver_family == "cp":
+        kwargs["timelimit"] = benchmark.execution.task.get("solver_timeout_seconds")
+    return kwargs
+
+
+def _run_claasp_xor_linear_find_one(benchmark: Any, solver_name: str, solver_family: str | None) -> dict[str, Any]:
+    model_class, class_name = _linear_model_class_for_family(solver_family)
+    method_name = _method_name("claasp_xor_linear_find_one", solver_family)
+    parameters = dict(benchmark.challenge.parameters)
+    parameters.update(benchmark.execution.task.get("cipher_parameters", {}))
+    cipher_start = time.perf_counter()
+    cipher = _instantiate_cipher(benchmark.challenge.primitive, parameters)
+    cipher_build_time = round(time.perf_counter() - cipher_start, 6)
+    model = model_class(cipher)
+    solution = model.find_one_xor_linear_trail(solver_name=solver_name, **_linear_solver_kwargs(benchmark, solver_family))
+    solution = _safe_public_value(solution)
+    variables = getattr(model, "_variables_list", None) or getattr(model, "_variables_declarations", None)
+    constraints = getattr(model, "_model_constraints", None)
+    return {
+        "status": _normalise_status(solution.get("status")),
+        "cipher": _cipher_metadata(cipher, parameters),
+        "timing": {
+            "cipher_build_time_seconds": cipher_build_time,
+            "build_time_seconds": solution.get("building_time_seconds", solution.get("building_time")),
+            "solve_time_seconds": solution.get("solving_time_seconds"),
+        },
+        "resources": {"peak_memory_mb": solution.get("memory_megabytes")},
+        "model": {
+            "variables": len(variables) if variables is not None else None,
+            "constraints": len(constraints) if constraints is not None else None,
+        },
+        "claasp_output": {
+            "version": _claasp_version(),
+            "cipher_class": class_name,
+            "method_name": method_name,
+        },
+        "solver_output": _compact_solution(solution),
+    }
+
+
+def _run_claasp_xor_linear_enumerate_fixed_weight(
+    benchmark: Any, solver_name: str, solver_family: str | None
+) -> dict[str, Any]:
+    model_class, class_name = _linear_model_class_for_family(solver_family)
+    method_name = _method_name("claasp_xor_linear_enumerate_fixed_weight", solver_family)
+    parameters = dict(benchmark.challenge.parameters)
+    parameters.update(benchmark.execution.task.get("cipher_parameters", {}))
+    fixed_weight = int(benchmark.execution.task.get("fixed_weight", parameters.get("weight", 0)))
+    cipher_start = time.perf_counter()
+    cipher = _instantiate_cipher(benchmark.challenge.primitive, parameters)
+    cipher_build_time = round(time.perf_counter() - cipher_start, 6)
+    model = model_class(cipher)
+    started = time.perf_counter()
+    solutions = model.find_all_xor_linear_trails_with_fixed_weight(
+        fixed_weight, solver_name=solver_name, **_linear_solver_kwargs(benchmark, solver_family)
+    )
+    enumeration_time = round(time.perf_counter() - started, 6)
+    solutions = _safe_public_value(solutions)
+    if isinstance(solutions, dict):
+        solutions = [solutions]
+    variables = getattr(model, "_variables_list", None) or getattr(model, "_variables_declarations", None)
+    constraints = getattr(model, "_model_constraints", None)
+    first_solution = solutions[0] if solutions else {}
+    solve_times = [
+        solution.get("solving_time_seconds")
+        for solution in solutions
+        if isinstance(solution, dict) and isinstance(solution.get("solving_time_seconds"), numbers.Real)
+    ]
+    memories = [
+        solution.get("memory_megabytes")
+        for solution in solutions
+        if isinstance(solution, dict) and isinstance(solution.get("memory_megabytes"), numbers.Real)
+    ]
+    build_time = (
+        first_solution.get("building_time_seconds", first_solution.get("building_time"))
+        if isinstance(first_solution, dict)
+        else None
+    )
+    return {
+        "status": "sat" if solutions else "unsat",
+        "cipher": _cipher_metadata(cipher, parameters),
+        "timing": {
+            "cipher_build_time_seconds": cipher_build_time,
+            "build_time_seconds": build_time,
+            "solve_time_seconds": sum(solve_times) if solve_times else None,
+            "enumeration_time_seconds": enumeration_time,
+        },
+        "resources": {"peak_memory_mb": max(memories) if memories else None},
+        "model": {
+            "variables": len(variables) if variables is not None else None,
+            "constraints": len(constraints) if constraints is not None else None,
+        },
+        "claasp_output": {
+            "version": _claasp_version(),
+            "cipher_class": class_name,
+            "method_name": method_name,
+        },
+        "solver_output": {
+            "enumerated_trails": len(solutions),
+            "fixed_weight": fixed_weight,
+            "first_solution": _compact_solution(first_solution) if isinstance(first_solution, dict) else {},
+        },
+    }
+
+
+def _run_claasp_xor_linear_find_lowest_weight(
+    benchmark: Any, solver_name: str, solver_family: str | None
+) -> dict[str, Any]:
+    model_class, class_name = _linear_model_class_for_family(solver_family)
+    method_name = _method_name("claasp_xor_linear_find_lowest_weight", solver_family)
+    parameters = dict(benchmark.challenge.parameters)
+    parameters.update(benchmark.execution.task.get("cipher_parameters", {}))
+    cipher_start = time.perf_counter()
+    cipher = _instantiate_cipher(benchmark.challenge.primitive, parameters)
+    cipher_build_time = round(time.perf_counter() - cipher_start, 6)
+    model = model_class(cipher)
+    solution = model.find_lowest_weight_xor_linear_trail(
+        solver_name=solver_name, **_linear_solver_kwargs(benchmark, solver_family)
+    )
+    solution = _safe_public_value(solution)
+    variables = getattr(model, "_variables_list", None) or getattr(model, "_variables_declarations", None)
+    constraints = getattr(model, "_model_constraints", None)
+    return {
+        "status": _normalise_status(solution.get("status")),
+        "cipher": _cipher_metadata(cipher, parameters),
+        "timing": {
+            "cipher_build_time_seconds": cipher_build_time,
+            "build_time_seconds": solution.get("building_time_seconds", solution.get("building_time")),
+            "solve_time_seconds": solution.get("solving_time_seconds"),
+            "proof_time_seconds": solution.get("solving_time_seconds"),
+        },
+        "resources": {"peak_memory_mb": solution.get("memory_megabytes")},
+        "model": {
+            "variables": len(variables) if variables is not None else None,
+            "constraints": len(constraints) if constraints is not None else None,
+        },
+        "claasp_output": {
+            "version": _claasp_version(),
+            "cipher_class": class_name,
+            "method_name": method_name,
+        },
+        "solver_output": _compact_solution(solution),
+    }
+
+
 def _available_solver_rows(benchmark: Any) -> list[dict[str, Any]]:
     families = benchmark.execution.task.get("solver_families")
     family = benchmark.execution.task.get("solver_family") or MODEL_FAMILY_TO_SOLVER_FAMILY.get(
@@ -772,6 +955,9 @@ def run_worker(manifest_path: Path, result_path: Path) -> int:
             "claasp_sat_xor_differential_enumerate_fixed_weight",
             "claasp_xor_differential_enumerate_fixed_weight",
             "claasp_xor_differential_find_lowest_weight",
+            "claasp_xor_linear_find_one",
+            "claasp_xor_linear_enumerate_fixed_weight",
+            "claasp_xor_linear_find_lowest_weight",
         }:
             details = _run_solver_with_timeout(
                 benchmark,
@@ -858,6 +1044,12 @@ def _run_solver_task(benchmark: Any, solver_name: str, solver_family: str | None
         return _run_claasp_xor_differential_enumerate_fixed_weight(benchmark, solver_name, solver_family)
     if task_kind == "claasp_xor_differential_find_lowest_weight":
         return _run_claasp_xor_differential_find_lowest_weight(benchmark, solver_name, solver_family)
+    if task_kind == "claasp_xor_linear_find_one":
+        return _run_claasp_xor_linear_find_one(benchmark, solver_name, solver_family)
+    if task_kind == "claasp_xor_linear_enumerate_fixed_weight":
+        return _run_claasp_xor_linear_enumerate_fixed_weight(benchmark, solver_name, solver_family)
+    if task_kind == "claasp_xor_linear_find_lowest_weight":
+        return _run_claasp_xor_linear_find_lowest_weight(benchmark, solver_name, solver_family)
     return _run_claasp_xor_differential_find_one(benchmark, solver_name, solver_family)
 
 

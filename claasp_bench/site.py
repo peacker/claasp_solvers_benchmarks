@@ -41,17 +41,20 @@ HTML = """<!doctype html>
         <div><strong id="median">-</strong><span>median time</span></div>
         <div><strong id="statuses">-</strong><span>statuses</span></div>
       </section>
-      <table id="summary-table">
+      <div class="toolbar table-toolbar">
+        <section>
+          <h2>Display</h2>
+          <div class="display-controls" aria-label="Summary cell display mode">
+            <button type="button" class="display-button active" data-table="summary" data-mode="compact">Compact</button>
+            <button type="button" class="display-button" data-table="summary" data-mode="wrap">Wrap Cells</button>
+            <button type="button" class="display-button" data-table="summary" data-mode="expanded">Expand Lines</button>
+          </div>
+        </section>
+      </div>
+      <table id="summary-table" class="compact">
+          <colgroup id="summary-colgroup"></colgroup>
           <thead>
-            <tr>
-              <th title="Cipher, parameters, CLAASP method, and analysis defining this benchmark instance.">Instance</th>
-              <th title="Number of run records in this summary group after filters are applied.">Runs</th>
-              <th title="Solvers represented in this summary group.">Solvers</th>
-              <th title="Status counts for this summary group.">Statuses</th>
-              <th title="Sum of wall-clock time for all runs in this summary group.">Total Wall</th>
-              <th title="Fastest wall-clock time in this summary group.">Best Wall</th>
-              <th title="Median wall-clock time in this summary group.">Median Wall</th>
-            </tr>
+            <tr id="summary-header"></tr>
           </thead>
           <tbody id="summary-rows"></tbody>
         </table>
@@ -65,9 +68,9 @@ HTML = """<!doctype html>
         <section>
           <h2>Display</h2>
           <div class="display-controls" aria-label="Cell display mode">
-            <button type="button" class="display-button active" data-mode="compact">Compact</button>
-            <button type="button" class="display-button" data-mode="wrap">Wrap Cells</button>
-            <button type="button" class="display-button" data-mode="expanded">Expand Lines</button>
+            <button type="button" class="display-button active" data-table="runs" data-mode="compact">Compact</button>
+            <button type="button" class="display-button" data-table="runs" data-mode="wrap">Wrap Cells</button>
+            <button type="button" class="display-button" data-table="runs" data-mode="expanded">Expand Lines</button>
           </div>
         </section>
       </div>
@@ -125,7 +128,7 @@ p {
 }
 #filters {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
   gap: 12px;
 }
 label {
@@ -133,6 +136,7 @@ label {
   gap: 6px;
   font-size: 13px;
   font-weight: 600;
+  min-width: 0;
 }
 .column-controls {
   display: flex;
@@ -147,6 +151,8 @@ label {
   font-weight: 500;
 }
 select {
+  width: 100%;
+  min-width: 0;
   min-height: 36px;
   border: 1px solid #ced6e0;
   border-radius: 6px;
@@ -197,6 +203,9 @@ button {
   background: #f7f8fa;
   padding-bottom: 8px;
 }
+.table-toolbar {
+  margin: 12px 0 8px;
+}
 .display-controls {
   display: flex;
   flex-wrap: wrap;
@@ -241,23 +250,23 @@ th, td {
   text-overflow: ellipsis;
   vertical-align: top;
 }
-#runs-table.compact td {
+table.compact td {
   white-space: nowrap;
   max-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-#runs-table.wrap td {
+table.wrap td {
   white-space: normal;
   max-width: 0;
   overflow: hidden;
   text-overflow: clip;
 }
-#runs-table.expanded {
+table.expanded {
   table-layout: auto;
   width: max-content;
 }
-#runs-table.expanded td {
+table.expanded td {
   white-space: nowrap;
   overflow: visible;
   text-overflow: clip;
@@ -305,15 +314,17 @@ th {
 
 JS = """const assetVersion = "__ASSET_VERSION__";
 const dimensions = [
+  ["tier", "Tier", record => record.tier],
   ["primitive", "Primitive", record => record.challenge.primitive],
   ["primitive_family", "Primitive Family", record => record.challenge.primitive_family],
-  ["claasp_method", "CLAASP Method", record => record.execution.claasp_method],
+  ["claasp_method", "CLAASP Method", record => claaspMethod(record)],
   ["model_family", "Model", record => record.challenge.model_family],
   ["solver", "Solver", record => record.execution.solver],
   ["duration", "Duration", record => durationBucket(record.timing.wall_time_seconds)],
   ["status", "Status", record => record.status],
 ];
 const columnDescriptions = {
+  tier: "Benchmark suite tier, such as smoke, nightly, or release.",
   benchmark: "Stable run identifier emitted by the benchmark runner.",
   primitive: "Concrete cipher or primitive under test.",
   cipher_parameters: "Cipher parameters reported by CLAASP, such as rounds, block size, and key size.",
@@ -336,12 +347,31 @@ const columnDescriptions = {
   error: "Error details when a run fails or times out.",
   artifacts: "Captured stdout/stderr excerpts and worker details.",
 };
+const summaryColumnDescriptions = {
+  instance: "Cipher, parameters, CLAASP method, and analysis defining this benchmark instance.",
+  runs: "Number of run records in this summary group after filters are applied.",
+  solvers: "Solvers represented in this summary group.",
+  statuses: "Status counts for this summary group.",
+  total_wall: "Sum of wall-clock time for all runs in this summary group.",
+  best_wall: "Fastest wall-clock time in this summary group.",
+  median_wall: "Median wall-clock time in this summary group.",
+};
+const summaryColumns = [
+  ["instance", "Instance", item => item.key],
+  ["runs", "Runs", item => item.runs],
+  ["solvers", "Solvers", item => item.solvers],
+  ["statuses", "Statuses", item => item.statuses],
+  ["total_wall", "Total Wall", item => item.totalWall],
+  ["best_wall", "Best Wall", item => item.bestWall],
+  ["median_wall", "Median Wall", item => item.medianWall],
+];
 const runColumns = [
+  ["tier", "Tier", record => record.tier],
   ["benchmark", "Benchmark", record => record.benchmark_id],
   ["primitive", "Primitive", record => record.challenge.primitive],
   ["cipher_parameters", "Cipher Parameters", record => cipherParameters(record)],
   ["architecture", "Architecture", record => architecture(record)],
-  ["claasp_method", "CLAASP Method", record => record.execution.claasp_method],
+  ["claasp_method", "CLAASP Method", record => claaspMethod(record)],
   ["goal", "Goal", record => record.challenge.goal],
   ["analysis", "Analysis", record => record.challenge.analysis],
   ["model", "Model", record => record.challenge.model_family],
@@ -362,8 +392,10 @@ const runColumns = [
 let allResults = [];
 let taxonomy = {};
 let visibleColumns = new Set(runColumns.map(([id]) => id));
-let columnWidths = {};
-let displayMode = "compact";
+const tableState = {
+  runs: {displayMode: "compact", columnWidths: {}},
+  summary: {displayMode: "compact", columnWidths: {}},
+};
 
 function escapeHtml(value) {
   return String(value)
@@ -435,6 +467,11 @@ function architecture(record) {
   return `${fmtValue(cpu)}; cores=${fmtValue(cores)}; ${fmtValue(machine.platform || machine.machine)}`;
 }
 
+function claaspMethod(record) {
+  const method = record.execution.claasp_method || (record.claasp_output || {}).method_name;
+  return method ? String(method).split(".").pop() : "NA";
+}
+
 function median(values) {
   if (!values.length) return null;
   const sorted = [...values].sort((a, b) => a - b);
@@ -474,7 +511,7 @@ function instanceKey(record) {
   return [
     record.challenge.primitive,
     cipherParameters(record),
-    record.execution.claasp_method || "NA",
+    claaspMethod(record),
     record.challenge.analysis
   ].join(" | ");
 }
@@ -508,12 +545,15 @@ function buildTabs() {
 function buildDisplayControls() {
   document.querySelectorAll(".display-button").forEach(button => {
     button.addEventListener("click", () => {
-      displayMode = button.dataset.mode;
-      if (displayMode === "compact") columnWidths = {};
-      document.querySelectorAll(".display-button").forEach(item => item.classList.remove("active"));
+      const tableName = button.dataset.table;
+      const state = tableState[tableName];
+      state.displayMode = button.dataset.mode;
+      if (state.displayMode === "compact") state.columnWidths = {};
+      document.querySelectorAll(`.display-button[data-table="${tableName}"]`).forEach(item => item.classList.remove("active"));
       button.classList.add("active");
-      document.getElementById("runs-table").className = displayMode;
-      renderHeader();
+      document.getElementById(`${tableName === "runs" ? "runs" : "summary"}-table`).className = state.displayMode;
+      if (tableName === "runs") renderRunHeader();
+      else renderSummaryHeader();
     });
   });
 }
@@ -522,29 +562,55 @@ function minColumnWidth(label) {
   return Math.max(88, Math.ceil(label.length * 8.2) + 34);
 }
 
-function renderHeader() {
-  const active = runColumns.filter(([id]) => visibleColumns.has(id));
-  document.getElementById("runs-colgroup").innerHTML = active.map(([id]) => `
-    <col data-column="${id}" style="${displayMode === "expanded" ? "" : `width: ${columnWidths[id] || `${minColumnWidth(runColumns.find(([columnId]) => columnId === id)[1])}px`}`}">
+function renderTableHeader({tableName, tableId, colgroupId, headerId, columns, descriptions}) {
+  const state = tableState[tableName];
+  const active = columns;
+  document.getElementById(colgroupId).innerHTML = active.map(([id, label]) => `
+    <col data-table="${tableName}" data-column="${id}" style="${state.displayMode === "expanded" ? "" : `width: ${state.columnWidths[id] || `${minColumnWidth(label)}px`}`}">
   `).join("");
-  document.getElementById("runs-header").innerHTML = active.map(([id, label]) => `
-    <th class="resizable-th" data-column="${id}" title="${escapeHtml(columnDescriptions[id] || label)}">${escapeHtml(label)}<span class="resize-handle" data-column="${id}"></span></th>
+  document.getElementById(headerId).innerHTML = active.map(([id, label]) => `
+    <th class="resizable-th" data-column="${id}" title="${escapeHtml(descriptions[id] || label)}">${escapeHtml(label)}<span class="resize-handle" data-table="${tableName}" data-column="${id}"></span></th>
   `).join("");
-  document.querySelectorAll(".resize-handle").forEach(handle => {
+  document.querySelectorAll(`#${tableId} .resize-handle`).forEach(handle => {
     handle.addEventListener("mousedown", startResize);
+  });
+}
+
+function renderRunHeader() {
+  const active = runColumns.filter(([id]) => visibleColumns.has(id));
+  renderTableHeader({
+    tableName: "runs",
+    tableId: "runs-table",
+    colgroupId: "runs-colgroup",
+    headerId: "runs-header",
+    columns: active,
+    descriptions: columnDescriptions,
+  });
+}
+
+function renderSummaryHeader() {
+  renderTableHeader({
+    tableName: "summary",
+    tableId: "summary-table",
+    colgroupId: "summary-colgroup",
+    headerId: "summary-header",
+    columns: summaryColumns,
+    descriptions: summaryColumnDescriptions,
   });
 }
 
 function startResize(event) {
   event.preventDefault();
+  const tableName = event.target.dataset.table;
   const columnId = event.target.dataset.column;
-  const col = document.querySelector(`col[data-column="${columnId}"]`);
+  const state = tableState[tableName];
+  const col = document.querySelector(`col[data-table="${tableName}"][data-column="${columnId}"]`);
   const startX = event.clientX;
   const startWidth = col.getBoundingClientRect().width;
   function move(moveEvent) {
     const nextWidth = Math.max(70, startWidth + moveEvent.clientX - startX);
-    columnWidths[columnId] = `${nextWidth}px`;
-    col.style.width = columnWidths[columnId];
+    state.columnWidths[columnId] = `${nextWidth}px`;
+    col.style.width = state.columnWidths[columnId];
   }
   function stop() {
     document.removeEventListener("mousemove", move);
@@ -561,25 +627,32 @@ function renderBenchmarkSummary(records) {
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(record);
   }
-  document.getElementById("summary-rows").innerHTML = [...groups.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([key, items]) => {
+  const summaryRows = [...groups.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([key, items]) => {
     const durations = items.map(record => record.timing.wall_time_seconds).filter(value => typeof value === "number");
     const statuses = items.reduce((counts, record) => {
       counts[record.status] = (counts[record.status] || 0) + 1;
       return counts;
     }, {});
     const solvers = [...new Set(items.map(record => record.execution.solver).filter(Boolean))].sort();
-    return `
+    return {
+      key,
+      runs: items.length,
+      solvers: solvers.join(", ") || "NA",
+      statuses: Object.entries(statuses).map(([k, v]) => `${k}: ${v}`).join(", ") || "NA",
+      totalWall: durations.length ? fmtSeconds(durations.reduce((total, value) => total + value, 0)) : "NA",
+      bestWall: durations.length ? fmtSeconds(Math.min(...durations)) : "NA",
+      medianWall: fmtSeconds(median(durations)),
+    };
+  });
+  renderSummaryHeader();
+  document.getElementById("summary-rows").innerHTML = summaryRows.map(item => `
       <tr>
-        <td>${escapeHtml(key)}</td>
-        <td>${items.length}</td>
-        <td>${escapeHtml(solvers.join(", ") || "NA")}</td>
-        <td>${escapeHtml(Object.entries(statuses).map(([k, v]) => `${k}: ${v}`).join(", ") || "NA")}</td>
-        <td>${escapeHtml(durations.length ? fmtSeconds(durations.reduce((total, value) => total + value, 0)) : "NA")}</td>
-        <td>${escapeHtml(durations.length ? fmtSeconds(Math.min(...durations)) : "NA")}</td>
-        <td>${escapeHtml(fmtSeconds(median(durations)))}</td>
+        ${summaryColumns.map(([, , getter]) => {
+          const value = fmtValue(getter(item));
+          return `<td data-full="${escapeHtml(value)}">${escapeHtml(value)}</td>`;
+        }).join("")}
       </tr>
-    `;
-  }).join("");
+    `).join("");
 }
 
 function render() {
@@ -595,7 +668,7 @@ function render() {
   document.getElementById("median").textContent = fmtSeconds(median(durations));
   document.getElementById("statuses").textContent = Object.entries(statusCounts).map(([k, v]) => `${k}: ${v}`).join(", ") || "-";
   renderBenchmarkSummary(records);
-  renderHeader();
+  renderRunHeader();
   const active = runColumns.filter(([id]) => visibleColumns.has(id));
   document.getElementById("rows").innerHTML = records.map(record => `
     <tr>
@@ -610,7 +683,7 @@ function render() {
 
 function bindCellTooltips() {
   const tooltip = document.getElementById("cell-tooltip");
-  document.querySelectorAll("#runs-table td").forEach(cell => {
+  document.querySelectorAll("#runs-table td, #summary-table td").forEach(cell => {
     cell.addEventListener("mouseenter", event => {
       tooltip.value = event.currentTarget.dataset.full || "";
       tooltip.style.display = "block";

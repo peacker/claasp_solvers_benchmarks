@@ -1,0 +1,41 @@
+{
+  "id": "smoke_speck_xor_linear_find_all_fixed_weight_all_models",
+  "tier": "smoke",
+  "challenge": {
+    "id": "speck_xor_linear_find_all_fixed_weight",
+    "name": "Speck XOR linear fixed-weight find-all solver sweep",
+    "primitive": "Speck-8/16",
+    "primitive_family": "ARX",
+    "goal": "enumerate_trails",
+    "analysis": "linear",
+    "model_family": "hybrid",
+    "difficulty": "tutorial",
+    "io_mode": "fixed_io",
+    "model_mode": "fixed_model",
+    "parameters": {
+      "number_of_rounds": 2,
+      "block_bit_size": 8,
+      "key_bit_size": 16,
+      "weight": 1
+    },
+    "tags": ["smoke", "docker", "claasp", "linear", "enumeration"]
+  },
+  "execution": {
+    "runner": "docker",
+    "solver": "all_available",
+    "claasp_image": "tiicrc/claasp-base:latest",
+    "timeout_seconds": 120,
+    "memory_mb": 2048,
+    "expected_status": "sat",
+    "task": {
+      "kind": "claasp_xor_linear_enumerate_fixed_weight",
+      "claasp_method_name": "find_all_xor_linear_trails_with_fixed_weight",
+      "status": "sat",
+      "fixed_weight": 1,
+      "available_only": true,
+      "solver_families": ["sat", "smt", "milp", "cp"],
+      "solver_source": "external",
+      "solver_timeout_seconds": 10
+    }
+  }
+}
