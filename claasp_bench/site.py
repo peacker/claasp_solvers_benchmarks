@@ -39,7 +39,7 @@ HTML = """<!doctype html>
       <table id="summary-table">
           <thead>
             <tr>
-              <th>Instance</th><th>Runs</th><th>Solvers</th><th>Statuses</th><th>Best Wall</th><th>Median Wall</th>
+              <th>Instance</th><th>Runs</th><th>Solvers</th><th>Statuses</th><th>Total Wall</th><th>Best Wall</th><th>Median Wall</th>
             </tr>
           </thead>
           <tbody id="summary-rows"></tbody>
@@ -216,14 +216,19 @@ th, td {
 }
 #runs-table.compact td {
   white-space: nowrap;
+  max-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 #runs-table.wrap td {
   white-space: normal;
-  overflow: visible;
+  max-width: 0;
+  overflow: hidden;
   text-overflow: clip;
 }
 #runs-table.expanded {
   table-layout: auto;
+  width: max-content;
 }
 #runs-table.expanded td {
   white-space: nowrap;
@@ -443,6 +448,7 @@ function buildDisplayControls() {
       document.querySelectorAll(".display-button").forEach(item => item.classList.remove("active"));
       button.classList.add("active");
       document.getElementById("runs-table").className = displayMode;
+      renderHeader();
     });
   });
 }
@@ -454,7 +460,7 @@ function minColumnWidth(label) {
 function renderHeader() {
   const active = runColumns.filter(([id]) => visibleColumns.has(id));
   document.getElementById("runs-colgroup").innerHTML = active.map(([id]) => `
-    <col data-column="${id}" style="width: ${columnWidths[id] || `${minColumnWidth(runColumns.find(([columnId]) => columnId === id)[1])}px`}">
+    <col data-column="${id}" style="${displayMode === "expanded" ? "" : `width: ${columnWidths[id] || `${minColumnWidth(runColumns.find(([columnId]) => columnId === id)[1])}px`}`}">
   `).join("");
   document.getElementById("runs-header").innerHTML = active.map(([id, label]) => `
     <th class="resizable-th" data-column="${id}">${escapeHtml(label)}<span class="resize-handle" data-column="${id}"></span></th>
@@ -503,6 +509,7 @@ function renderBenchmarkSummary(records) {
         <td>${items.length}</td>
         <td>${escapeHtml(solvers.join(", ") || "NA")}</td>
         <td>${escapeHtml(Object.entries(statuses).map(([k, v]) => `${k}: ${v}`).join(", ") || "NA")}</td>
+        <td>${escapeHtml(durations.length ? fmtSeconds(durations.reduce((total, value) => total + value, 0)) : "NA")}</td>
         <td>${escapeHtml(durations.length ? fmtSeconds(Math.min(...durations)) : "NA")}</td>
         <td>${escapeHtml(fmtSeconds(median(durations)))}</td>
       </tr>
