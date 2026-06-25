@@ -60,6 +60,7 @@ def _base_result(benchmark: Benchmark) -> dict[str, Any]:
             "memory_mb": execution.memory_mb,
             "seed": execution.seed,
             "expected_status": execution.expected_status,
+            "num_threads": execution.num_threads,
             "task": execution.task,
             "claasp_method": execution.task.get("claasp_method_name"),
             "machine": {
@@ -171,6 +172,8 @@ class DockerRunner:
                 "-v",
                 f"{tmp}:/bench",
             ]
+            if benchmark.execution.num_threads is not None:
+                command.extend(["--cpus", str(benchmark.execution.num_threads)])
             if claasp_source_dir is not None:
                 command.extend(["-v", f"{claasp_source_dir}:/workspace/claasp"])
             command.extend(

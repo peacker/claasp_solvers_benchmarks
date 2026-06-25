@@ -38,6 +38,7 @@ class Execution:
     memory_mb: int | None = None
     seed: int | None = None
     expected_status: str | None = None
+    num_threads: int | None = None
     task: dict[str, Any] = field(default_factory=dict)
 
 
@@ -125,6 +126,7 @@ def benchmark_from_dict(data: dict[str, Any], source_path: str | None = None) ->
         memory_mb=_optional_positive_int(execution_data, "memory_mb"),
         seed=execution_data.get("seed"),
         expected_status=expected_status,
+        num_threads=_optional_positive_int(execution_data, "num_threads"),
         task=_require_mapping(execution_data.get("task", {}), "benchmark.execution.task"),
     )
     if not isinstance(execution.timeout_seconds, int) or execution.timeout_seconds <= 0:

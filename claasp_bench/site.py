@@ -320,6 +320,7 @@ const dimensions = [
   ["claasp_method", "CLAASP Method", record => claaspMethod(record)],
   ["model_family", "Model", record => record.challenge.model_family],
   ["solver", "Solver", record => record.execution.solver],
+  ["cores", "Cores", record => String((record.execution.machine || {}).usable_cpu_count ?? "NA")],
   ["duration", "Duration", record => durationBucket(record.timing.wall_time_seconds)],
   ["status", "Status", record => record.status],
 ];
@@ -337,6 +338,7 @@ const columnDescriptions = {
   solver_version: "Solver version detected from the executable, when available.",
   solver_options: "Executable, options, selector, and command format used to call the solver.",
   status: "Normalized run status.",
+  cores: "Usable CPU cores seen by the worker process (from sched_getaffinity or cpu_count).",
   build: "Model building time reported by CLAASP, when available.",
   solve: "Solver time reported by CLAASP, when available.",
   wall: "End-to-end wall-clock time measured by the benchmark runner.",
@@ -379,6 +381,7 @@ const runColumns = [
   ["solver_version", "Solver Version", record => (record.solver_output || {}).solver_version],
   ["solver_options", "Solver Options", record => solverOptions(record)],
   ["status", "Status", record => record.status],
+  ["cores", "Cores", record => (record.execution.machine || {}).usable_cpu_count],
   ["build", "Build", record => fmtSeconds(record.timing.build_time_seconds)],
   ["solve", "Solve", record => fmtSeconds(record.timing.solve_time_seconds)],
   ["wall", "Wall", record => fmtSeconds(record.timing.wall_time_seconds)],

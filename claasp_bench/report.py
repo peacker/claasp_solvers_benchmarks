@@ -58,8 +58,8 @@ def markdown_report(results_dir: Path) -> str:
         f"Best wall time: {_fmt_seconds(summary['best_wall_time_seconds'])}",
         f"Median wall time: {_fmt_seconds(summary['median_wall_time_seconds'])}",
         "",
-        "| Benchmark | Primitive | Cipher Parameters | Architecture | CLAASP Method | Goal | Analysis | Model | Solver | Solver Version | Solver Options | Status | Build | Solve | Wall | Memory | Model Size | CLAASP Output | Solver Output | Error | Artifacts |",
-        "|---|---|---|---|---|---|---|---|---|---|---|---|---:|---:|---:|---:|---|---|---|---|---|",
+        "| Benchmark | Primitive | Cipher Parameters | Architecture | CLAASP Method | Goal | Analysis | Model | Solver | Solver Version | Solver Options | Status | Cores | Build | Solve | Wall | Memory | Model Size | CLAASP Output | Solver Output | Error | Artifacts |",
+        "|---|---|---|---|---|---|---|---|---|---|---|---|---:|---:|---:|---:|---:|---|---|---|---|---|",
     ]
     for record in sorted(records, key=lambda item: item["benchmark_id"]):
         challenge = record["challenge"]
@@ -68,7 +68,7 @@ def markdown_report(results_dir: Path) -> str:
         model = record.get("model", {})
         lines.append(
             "| {benchmark} | {primitive} | {params} | {arch} | {method} | {goal} | {analysis} | {model_family} | {solver} | "
-            "{solver_version} | {solver_options} | {status} | {build} | {solve} | {wall} | {memory} | {model_size} | {claasp_output} | {solver_output} | "
+            "{solver_version} | {solver_options} | {status} | {cores} | {build} | {solve} | {wall} | {memory} | {model_size} | {claasp_output} | {solver_output} | "
             "{error} | {artifacts} |".format(
                 benchmark=record["benchmark_id"],
                 primitive=challenge["primitive"],
@@ -89,6 +89,7 @@ def markdown_report(results_dir: Path) -> str:
                     }
                 ),
                 status=record["status"],
+                cores=_fmt_value(execution.get("machine", {}).get("usable_cpu_count")),
                 build=_fmt_seconds(record["timing"].get("build_time_seconds")),
                 solve=_fmt_seconds(record["timing"].get("solve_time_seconds")),
                 wall=_fmt_seconds(record["timing"].get("wall_time_seconds")),

@@ -134,6 +134,28 @@ def _instantiate_cipher(primitive: str, parameters: dict[str, Any]) -> Any:
         if "rounds" in parameters and "number_of_rounds" not in kwargs:
             kwargs["number_of_rounds"] = parameters["rounds"]
         return SpeckBlockCipher(**kwargs)
+    if normalized.startswith("aes"):
+        from claasp.ciphers.block_ciphers.aes_block_cipher import AESBlockCipher
+
+        kwargs = {
+            key: parameters[key]
+            for key in ["block_bit_size", "key_bit_size", "number_of_rounds"]
+            if key in parameters
+        }
+        if "rounds" in parameters and "number_of_rounds" not in kwargs:
+            kwargs["number_of_rounds"] = parameters["rounds"]
+        return AESBlockCipher(**kwargs)
+    if normalized.startswith("ascon"):
+        from claasp.ciphers.permutations.ascon_permutation import AsconPermutation
+
+        kwargs = {
+            key: parameters[key]
+            for key in ["number_of_rounds"]
+            if key in parameters
+        }
+        if "rounds" in parameters and "number_of_rounds" not in kwargs:
+            kwargs["number_of_rounds"] = parameters["rounds"]
+        return AsconPermutation(**kwargs)
     raise ValueError(f"unsupported CLAASP cipher metadata primitive: {primitive}")
 
 
