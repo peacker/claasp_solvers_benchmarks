@@ -139,7 +139,7 @@ def _instantiate_cipher(primitive: str, parameters: dict[str, Any]) -> Any:
 
         kwargs = {
             key: parameters[key]
-            for key in ["block_bit_size", "key_bit_size", "number_of_rounds"]
+            for key in ["key_bit_size", "number_of_rounds"]
             if key in parameters
         }
         if "rounds" in parameters and "number_of_rounds" not in kwargs:
