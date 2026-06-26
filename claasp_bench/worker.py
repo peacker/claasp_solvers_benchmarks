@@ -200,7 +200,12 @@ def _instantiate_cipher(primitive: str, parameters: dict[str, Any]) -> Any:
         }
         if "rounds" in parameters and "number_of_rounds" not in kwargs:
             kwargs["number_of_rounds"] = parameters["rounds"]
-        return AESBlockCipher(**kwargs)
+        try:
+            return AESBlockCipher(**kwargs)
+        except TypeError:
+            # CLAASP < v3.2.1 uses AESBlockCipher(number_of_rounds, word_size, state_size)
+            old_kwargs = {k: v for k, v in kwargs.items() if k == "number_of_rounds"}
+            return AESBlockCipher(**old_kwargs)
     if normalized.startswith("ascon"):
         from claasp.ciphers.permutations.ascon_permutation import AsconPermutation
 
