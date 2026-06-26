@@ -6,7 +6,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from .loader import load_benchmarks
+from .loader import check_file_names, load_benchmarks
 from .report import markdown_report
 from .results import append_jsonl, summarize, write_json
 from .runner import runner_for
@@ -14,6 +14,15 @@ from .site import generate_site
 
 
 def _cmd_validate(args: argparse.Namespace) -> int:
+    bad_names = check_file_names(args.path)
+    if bad_names:
+        for path in bad_names:
+            print(f"error: non-standard benchmark file name: {path}", file=sys.stderr)
+        print(
+            "File names must follow: {primitive}_{analysis}_{task}[_{modifier}]_{solver_scope}.json",
+            file=sys.stderr,
+        )
+        return 1
     benchmarks = load_benchmarks(args.path)
     print(f"Validated {len(benchmarks)} benchmark manifest(s)")
     return 0

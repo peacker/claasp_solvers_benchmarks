@@ -1,0 +1,45 @@
+{
+  "id": "fixture_arx_differential_find_one",
+  "tier": "smoke",
+  "challenge": {
+    "id": "speck32_64_r2_diff_find_one",
+    "name": "Speck differential one-trail fixture",
+    "primitive": "Speck-32/64",
+    "primitive_family": "ARX",
+    "goal": "find_one_trail",
+    "analysis": "differential",
+    "model_family": "SAT",
+    "difficulty": "tutorial",
+    "parameters": {
+      "number_of_rounds": 2,
+      "block_bit_size": 32,
+      "key_bit_size": 64,
+      "weight": 3
+    },
+    "tags": [
+      "fixture"
+    ]
+  },
+  "execution": {
+    "runner": "synthetic",
+    "solver": "synthetic-sat",
+    "timeout_seconds": 10,
+    "expected_status": "sat",
+    "task": {
+      "kind": "synthetic",
+      "status": "sat",
+      "synthetic_wall_time_seconds": 0.01,
+      "synthetic_build_time_seconds": 0.004,
+      "synthetic_solve_time_seconds": 0.006,
+      "model": {
+        "variables": 128,
+        "clauses": 512,
+        "file_size_bytes": 4096
+      },
+      "solver_output": {
+        "solutions": 1
+      },
+      "claasp_method_name": "find_one_xor_differential_trail"
+    }
+  }
+}

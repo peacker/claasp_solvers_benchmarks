@@ -1,0 +1,44 @@
+{
+  "id": "fixture_spn_differential_enumerate",
+  "tier": "smoke",
+  "challenge": {
+    "id": "present_r3_diff_enumerate",
+    "name": "PRESENT differential enumeration fixture",
+    "primitive": "PRESENT",
+    "primitive_family": "bit_based_SPN",
+    "goal": "enumerate_trails",
+    "analysis": "differential",
+    "model_family": "CP_MiniZinc",
+    "difficulty": "benchmark",
+    "parameters": {
+      "number_of_rounds": 3,
+      "block_bit_size": 64,
+      "key_bit_size": 80
+    },
+    "tags": [
+      "fixture"
+    ]
+  },
+  "execution": {
+    "runner": "synthetic",
+    "solver": "synthetic-cp",
+    "timeout_seconds": 10,
+    "expected_status": "optimum",
+    "task": {
+      "kind": "synthetic",
+      "status": "optimum",
+      "synthetic_wall_time_seconds": 0.02,
+      "synthetic_build_time_seconds": 0.007,
+      "synthetic_solve_time_seconds": 0.013,
+      "model": {
+        "variables": 256,
+        "constraints": 1024,
+        "file_size_bytes": 8192
+      },
+      "solver_output": {
+        "enumerated_trails": 12
+      },
+      "claasp_method_name": "find_all_xor_differential_trails"
+    }
+  }
+}

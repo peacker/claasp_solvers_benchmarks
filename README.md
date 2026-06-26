@@ -29,6 +29,52 @@ A benchmark manifest describes:
 
 ---
 
+## File naming convention
+
+Every benchmark JSON file must follow this pattern:
+
+```
+{primitive}_{analysis}_{task}[_{modifier}]*_{params}_{solver_scope}[_{note}].json
+```
+
+| Segment | Position | Description | Allowed values / format |
+|---|---|---|---|
+| `primitive` | 1 | Lowercase cipher slug | `speck`, `aes`, `ascon`, `present`, `gimli`, … |
+| `analysis` | 2 | Cryptanalytic model | `differential`, `linear`, `differential_linear`, `rotational_xor`, `impossible_differential`, `integral` |
+| `task` | 3 | What the benchmark does | `find_one`, `find_optimal`, `find_all_fixed_weight`, `enumerate`, `estimate`, `key_recovery`, `hash_collision` |
+| `modifier` | 4 (optional, repeatable) | Expected outcome or execution mode | `unsat`, `multicores` |
+| `params` | 5 | Primitive instance: rounds + sizes/weight | `r{N}` always required, then any of `b{N}` (block bits), `k{N}` (key bits), `s{N}` (state bits), `w{N}` (fixed weight), all concatenated without separators |
+| `solver_scope` | 6 | Target solver family | `sat`, `milp`, `cp`, `smt`, `all_models` |
+| `note` | 7 (optional) | Free-form tag for versioning, disambiguation, etc. | any lowercase snake\_case string, e.g. `v2`, `strong_rc`, `seed42` |
+
+All segments are lowercase and separated by underscores. The params segment uses letter-prefixed numbers concatenated without internal separators: `r5b32k64`, `r2s384`, `r3b64k80w1`.
+
+**Task keyword mapping to `challenge.goal`:**
+
+| Filename task | JSON `challenge.goal` |
+|---|---|
+| `find_one` | `find_one_trail` |
+| `find_optimal` | `prove_bound` |
+| `find_all_fixed_weight` | `enumerate_trails` (fixed weight) |
+| `enumerate` | `enumerate_trails` (generic) |
+| `estimate` | `estimate_probability` |
+| `key_recovery` | `key_recovery` |
+| `hash_collision` | `hash_collision` |
+
+**Examples:**
+
+| File name | Reads as |
+|---|---|
+| `speck_differential_find_one_r5b32k64_sat.json` | Speck-32/64 · XOR differential · find one trail · 5 rounds · SAT |
+| `aes_linear_find_optimal_r2b128k128_milp.json` | AES-128 · linear · find optimal (prove bound) · 2 rounds · MILP |
+| `ascon_differential_find_all_fixed_weight_unsat_r2s320w1_all_models.json` | Ascon · differential · enumerate fixed-weight-1 · expected UNSAT · 2 rounds, 320-bit state · all model families |
+| `speck_linear_find_all_fixed_weight_multicores_r2b8k16w1_all_models.json` | Speck-8/16 · linear · enumerate fixed-weight-1 · multi-core · 2 rounds · all model families |
+| `speck_differential_find_one_r5b32k64_sat_v2.json` | same as first row, second version (note: `v2`) |
+
+The naming convention is enforced by `python -m claasp_bench validate benchmarks` (run in CI on every push and pull request) and by the unit test `test_benchmark_file_names_follow_naming_convention`.
+
+---
+
 ## Adding a new benchmark
 
 **Adding a benchmark requires only one file change.**
@@ -41,11 +87,11 @@ Create a JSON file in the appropriate tier directory:
 
 ### Example: new Speck differential find-one benchmark
 
-Create `benchmarks/smoke/speck_find_one_sat.json`:
+Create `benchmarks/smoke/speck_differential_find_one_r3b32k64_sat.json`:
 
 ```json
 {
-  "id": "smoke_speck32_xor_differential_find_one_sat",
+  "id": "smoke_speck_differential_find_one_r3b32k64_sat",
   "tier": "smoke",
   "challenge": {
     "id": "speck32_64_r3_xor_diff_find_one",

@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 
 from claasp_bench.cli import main
-from claasp_bench.loader import load_benchmarks
+from claasp_bench.loader import BENCHMARK_FILE_NAME_RE, check_file_names, load_benchmarks
 from claasp_bench.results import load_result_records
 from claasp_bench.taxonomy import TAXONOMY
 
@@ -14,6 +14,63 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class ClaaspBenchTests(unittest.TestCase):
+    def test_benchmark_file_names_follow_naming_convention(self) -> None:
+        bad = check_file_names(ROOT / "benchmarks")
+        self.assertEqual(
+            bad,
+            [],
+            msg="Non-standard benchmark file names:\n" + "\n".join(bad),
+        )
+
+    def test_benchmark_file_name_pattern_accepts_valid_names(self) -> None:
+        valid = [
+            # minimal: rounds only
+            "speck_differential_find_one_r5b32k64_sat.json",
+            # full params: rounds + block + key
+            "aes_linear_find_optimal_r2b128k128_milp.json",
+            # rounds + block + key + weight
+            "present_differential_find_all_fixed_weight_r3b64k80_cp.json",
+            # state-based primitive (permutation): rounds + state
+            "gimli_differential_find_one_r2s384_smt.json",
+            # modifier before params
+            "ascon_linear_find_all_fixed_weight_unsat_r2s320w1_all_models.json",
+            "speck_differential_find_all_fixed_weight_multicores_r2b32k64w1_all_models.json",
+            # two modifiers
+            "speck_differential_find_all_fixed_weight_multicores_unsat_r3b8k16w1_all_models.json",
+            # optional note at the end
+            "speck_differential_find_one_r5b32k64_sat_v2.json",
+            "aes_linear_find_optimal_r2b128k128_milp_strong_rc.json",
+            # other analyses and tasks
+            "cipher_impossible_differential_find_one_r4b64k128_sat.json",
+            "cipher_rotational_xor_enumerate_r6b64_all_models.json",
+        ]
+        for name in valid:
+            with self.subTest(name=name):
+                self.assertIsNotNone(BENCHMARK_FILE_NAME_RE.match(name), f"Should match: {name}")
+
+    def test_benchmark_file_name_pattern_rejects_invalid_names(self) -> None:
+        invalid = [
+            # legacy / free-form names
+            "claasp_import.json",
+            "taxonomy_examples.json",
+            "speck_nightly_sat.json",
+            # missing analysis
+            "aes_find_one_r2b128k128_all_models.json",
+            # uppercase
+            "SPECK_differential_find_one_r5b32k64_sat.json",
+            # missing params slot entirely
+            "speck_differential_find_one_sat.json",
+            # missing solver scope
+            "speck_differential_find_one_r5b32k64.json",
+            # params not starting with r
+            "speck_differential_find_one_b32k64_sat.json",
+            # unknown analysis
+            "speck_unknown_analysis_find_one_r5b32k64_sat.json",
+        ]
+        for name in invalid:
+            with self.subTest(name=name):
+                self.assertIsNone(BENCHMARK_FILE_NAME_RE.match(name), f"Should not match: {name}")
+
     def test_fixture_manifests_cover_representative_taxonomy(self) -> None:
         benchmarks = load_benchmarks(ROOT / "benchmarks" / "fixtures")
         self.assertGreaterEqual(len(benchmarks), 4)
