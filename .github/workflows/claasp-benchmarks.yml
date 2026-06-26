@@ -57,19 +57,19 @@ jobs:
         run: |
           BENCH_HASH=$(find benchmarks -name '*.json' | sort | xargs sha256sum | sha256sum | cut -d' ' -f1)
           IMAGE_REF=$(cat /tmp/image-digest.txt | tr -d '\n' | tr '/:@' '---')
-          echo "key=bench-${BENCH_HASH}-${IMAGE_REF}" >> "$GITHUB_OUTPUT"
-      - name: Restore benchmark results cache
+          echo "smoke-key=bench-smoke-${BENCH_HASH}-${IMAGE_REF}" >> "$GITHUB_OUTPUT"
+      - name: Restore smoke benchmark results cache
         if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || github.ref == 'refs/heads/main'
         id: bench-cache
         uses: actions/cache@v4
         with:
           path: results
-          key: ${{ steps.bench-key.outputs.key }}
+          key: ${{ steps.bench-key.outputs.smoke-key }}
       - name: Run CLAASP available-solver sweep (smoke)
         if: (github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || github.ref == 'refs/heads/main') && steps.bench-cache.outputs.cache-hit != 'true'
         run: python -m claasp_bench run benchmarks/smoke --output results --runner docker
       - name: Run CLAASP nightly benchmarks
-        if: github.event_name == 'schedule' && steps.bench-cache.outputs.cache-hit != 'true'
+        if: github.event_name == 'schedule'
         run: python -m claasp_bench run benchmarks/nightly --output results --runner docker
       - name: Generate Markdown report
         run: python -m claasp_bench report results --output results/report.md

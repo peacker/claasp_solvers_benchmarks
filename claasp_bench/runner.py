@@ -47,8 +47,6 @@ def _base_result(benchmark: Benchmark) -> dict[str, Any]:
             "analysis": challenge.analysis,
             "model_family": challenge.model_family,
             "difficulty": challenge.difficulty,
-            "io_mode": challenge.io_mode,
-            "model_mode": challenge.model_mode,
             "parameters": challenge.parameters,
             "tags": challenge.tags,
         },

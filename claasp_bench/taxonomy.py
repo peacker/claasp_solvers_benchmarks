@@ -41,14 +41,6 @@ TAXONOMY = {
         "boundary",
         "open_challenge",
     ],
-    "io_mode": [
-        "fixed_io",
-        "free_io",
-    ],
-    "model_mode": [
-        "fixed_model",
-        "free_model",
-    ],
 }
 
 RESULT_STATUSES = ["sat", "unsat", "optimum", "timeout", "error", "unknown", "skipped"]

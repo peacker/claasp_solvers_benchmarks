@@ -149,6 +149,7 @@ p {
   margin-bottom: 16px;
   position: relative;
   z-index: 10;
+  overflow: visible;
 }
 .site-about {
   margin: 8px 0 2px;
