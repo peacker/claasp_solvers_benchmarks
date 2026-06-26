@@ -21,7 +21,14 @@ HTML = """<!doctype html>
 <body>
   <header>
     <h1>CLAASP Solver Benchmarks</h1>
-    <p>Filter by primitive, CLAASP method, model family, solver, analysis, status, and duration. Multiple values can be selected per filter.</p>
+    <details class="site-about">
+      <summary>About this dashboard</summary>
+      <div class="site-about-body">
+        <p>This dashboard reports automated cryptanalysis benchmarks run with <a href="https://github.com/Crypto-TII/claasp" target="_blank" rel="noopener">CLAASP</a> — a Python/Sage library for the algebraic analysis of symmetric cryptographic primitives. Each benchmark encodes a cryptanalytic challenge (finding XOR differential or linear trails, proving bounds, enumerating trails) for a specific cipher, then runs a full solver sweep comparing SAT, SMT, MILP, and CP (MiniZinc) backends.</p>
+        <p>Runs execute nightly via GitHub Actions inside a pinned Docker image. Each row records build time, solve time, peak memory, model size, and solver-specific metadata. Use the filters to slice by primitive, analysis, model family, solver, status, and duration — multiple values can be selected per filter.</p>
+        <p>Source: <a href="https://github.com/peacker/claasp_solvers_benchmarks" target="_blank" rel="noopener">github.com/peacker/claasp_solvers_benchmarks</a></p>
+      </div>
+    </details>
     <p class="site-meta" id="site-generated"></p>
   </header>
   <main>
@@ -140,6 +147,28 @@ p {
 }
 .filter-panel {
   margin-bottom: 16px;
+  position: relative;
+  z-index: 10;
+}
+.site-about {
+  margin: 8px 0 2px;
+}
+.site-about summary {
+  cursor: pointer;
+  font-size: 13px;
+  color: #3498db;
+  user-select: none;
+}
+.site-about-body {
+  padding: 8px 0 4px;
+}
+.site-about-body p {
+  margin: 6px 0;
+  font-size: 13px;
+  color: #57606f;
+}
+.site-about a {
+  color: #3498db;
 }
 #filters {
   display: grid;
@@ -415,8 +444,11 @@ const dimensions = [
   ["model_family", "Model", record => record.challenge.model_family],
   ["solver", "Solver", record => record.execution.solver],
   ["cores", "Cores", record => {
-    const n = record.execution.num_threads;
-    return n !== null && n !== undefined ? String(n) : String((record.execution.machine || {}).usable_cpu_count ?? "NA");
+    const exec = record.execution || {};
+    const observed = exec.observed_threads;
+    if (observed !== null && observed !== undefined) return String(observed);
+    const n = exec.num_threads;
+    return n !== null && n !== undefined ? String(n) : String((exec.machine || {}).usable_cpu_count ?? "NA");
   }],
   ["duration", "Duration", record => durationBucket(record.timing.wall_time_seconds)],
   ["status", "Status", record => record.status],
@@ -435,7 +467,7 @@ const columnDescriptions = {
   solver_version: "Solver version detected from the executable, when available.",
   solver_options: "Executable, options, selector, and command format used to call the solver.",
   status: "Normalized run status.",
-  cores: "Thread count configured for this run (execution.num_threads if set, otherwise usable_cpu_count). When configured count differs from available cores, shown as 'N (avail: M)'.",
+  cores: "Actual thread count observed via /proc during the solver run (observed_threads). Falls back to configured num_threads or usable_cpu_count when not available.",
   build: "Model building time reported by CLAASP, when available.",
   solve: "Solver time reported by CLAASP, when available.",
   wall: "End-to-end wall-clock time measured by the benchmark runner.",
@@ -479,9 +511,16 @@ const runColumns = [
   ["solver_options", "Solver Options", record => solverOptions(record)],
   ["status", "Status", record => record.status],
   ["cores", "Cores", record => {
-    const machine = record.execution.machine || {};
-    const n = record.execution.num_threads;
-    const usable = machine.usable_cpu_count;
+    const exec = record.execution || {};
+    const observed = exec.observed_threads;
+    const n = exec.num_threads;
+    const usable = (exec.machine || {}).usable_cpu_count;
+    if (observed !== null && observed !== undefined) {
+      const budget = n ?? usable;
+      return budget !== null && budget !== undefined && Number(budget) !== Number(observed)
+        ? `${observed} (budget: ${budget})`
+        : String(observed);
+    }
     if (n !== null && n !== undefined) {
       return usable !== null && usable !== undefined && usable !== n ? `${n} (avail: ${usable})` : String(n);
     }

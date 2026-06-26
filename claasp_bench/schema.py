@@ -108,8 +108,8 @@ def benchmark_from_dict(data: dict[str, Any], source_path: str | None = None) ->
         analysis=_require_enum(challenge_data, "analysis", "benchmark.challenge"),
         model_family=_require_enum(challenge_data, "model_family", "benchmark.challenge"),
         difficulty=_require_enum(challenge_data, "difficulty", "benchmark.challenge"),
-        io_mode=_require_enum(challenge_data, "io_mode", "benchmark.challenge"),
-        model_mode=_require_enum(challenge_data, "model_mode", "benchmark.challenge"),
+        io_mode=challenge_data.get("io_mode", "fixed_io"),
+        model_mode=challenge_data.get("model_mode", "fixed_model"),
         parameters=_require_mapping(challenge_data.get("parameters", {}), "benchmark.challenge.parameters"),
         tags=list(challenge_data.get("tags", [])),
     )

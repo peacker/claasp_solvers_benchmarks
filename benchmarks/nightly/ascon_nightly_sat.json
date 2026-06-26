@@ -10,13 +10,17 @@
     "analysis": "differential",
     "model_family": "SAT",
     "difficulty": "benchmark",
-    "io_mode": "fixed_io",
-    "model_mode": "fixed_model",
     "parameters": {
       "number_of_rounds": 4,
       "state_bit_size": 320
     },
-    "tags": ["nightly", "docker", "claasp", "ascon", "sat"]
+    "tags": [
+      "nightly",
+      "docker",
+      "claasp",
+      "ascon",
+      "sat"
+    ]
   },
   "execution": {
     "runner": "docker",
@@ -30,7 +34,9 @@
       "claasp_method_name": "find_one_xor_differential_trail",
       "status": "sat",
       "available_only": true,
-      "solver_families": ["sat"],
+      "solver_families": [
+        "sat"
+      ],
       "solver_source": "external",
       "solver_timeout_seconds": 300
     }

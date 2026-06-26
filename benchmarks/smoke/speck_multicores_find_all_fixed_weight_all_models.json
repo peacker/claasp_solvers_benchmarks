@@ -10,15 +10,19 @@
     "analysis": "differential",
     "model_family": "hybrid",
     "difficulty": "tutorial",
-    "io_mode": "fixed_io",
-    "model_mode": "fixed_model",
     "parameters": {
       "number_of_rounds": 2,
       "block_bit_size": 32,
       "key_bit_size": 64,
       "weight": 1
     },
-    "tags": ["smoke", "docker", "claasp", "enumeration", "multicores"]
+    "tags": [
+      "smoke",
+      "docker",
+      "claasp",
+      "enumeration",
+      "multicores"
+    ]
   },
   "execution": {
     "runner": "docker",
@@ -34,7 +38,12 @@
       "status": "sat",
       "fixed_weight": 1,
       "available_only": true,
-      "solver_families": ["sat", "smt", "milp", "cp"],
+      "solver_families": [
+        "sat",
+        "smt",
+        "milp",
+        "cp"
+      ],
       "solver_source": "external",
       "solver_timeout_seconds": 30
     }

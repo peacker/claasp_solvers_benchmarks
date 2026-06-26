@@ -48,12 +48,28 @@ jobs:
         run: docker version
       - name: Pull CLAASP Docker image
         if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || github.ref == 'refs/heads/main'
-        run: docker pull "$CLAASP_DOCKER_IMAGE"
-      - name: Run CLAASP available-solver sweep (smoke)
+        run: |
+          docker pull "$CLAASP_DOCKER_IMAGE"
+          docker inspect "$CLAASP_DOCKER_IMAGE" --format='{{index .RepoDigests 0}}' > /tmp/image-digest.txt || echo "$CLAASP_DOCKER_IMAGE" > /tmp/image-digest.txt
+      - name: Compute benchmark cache key
         if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || github.ref == 'refs/heads/main'
+        id: bench-key
+        run: |
+          BENCH_HASH=$(find benchmarks -name '*.json' | sort | xargs sha256sum | sha256sum | cut -d' ' -f1)
+          IMAGE_REF=$(cat /tmp/image-digest.txt | tr -d '\n' | tr '/:@' '---')
+          echo "key=bench-${BENCH_HASH}-${IMAGE_REF}" >> "$GITHUB_OUTPUT"
+      - name: Restore benchmark results cache
+        if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || github.ref == 'refs/heads/main'
+        id: bench-cache
+        uses: actions/cache@v4
+        with:
+          path: results
+          key: ${{ steps.bench-key.outputs.key }}
+      - name: Run CLAASP available-solver sweep (smoke)
+        if: (github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || github.ref == 'refs/heads/main') && steps.bench-cache.outputs.cache-hit != 'true'
         run: python -m claasp_bench run benchmarks/smoke --output results --runner docker
       - name: Run CLAASP nightly benchmarks
-        if: github.event_name == 'schedule'
+        if: github.event_name == 'schedule' && steps.bench-cache.outputs.cache-hit != 'true'
         run: python -m claasp_bench run benchmarks/nightly --output results --runner docker
       - name: Generate Markdown report
         run: python -m claasp_bench report results --output results/report.md

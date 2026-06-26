@@ -10,13 +10,18 @@
     "analysis": "linear",
     "model_family": "hybrid",
     "difficulty": "tutorial",
-    "io_mode": "fixed_io",
-    "model_mode": "fixed_model",
     "parameters": {
       "number_of_rounds": 2,
       "state_bit_size": 320
     },
-    "tags": ["smoke", "docker", "claasp", "ascon", "linear", "optimal"]
+    "tags": [
+      "smoke",
+      "docker",
+      "claasp",
+      "ascon",
+      "linear",
+      "optimal"
+    ]
   },
   "execution": {
     "runner": "docker",
@@ -30,7 +35,12 @@
       "claasp_method_name": "find_lowest_weight_xor_linear_trail",
       "status": "sat",
       "available_only": true,
-      "solver_families": ["sat", "smt", "milp", "cp"],
+      "solver_families": [
+        "sat",
+        "smt",
+        "milp",
+        "cp"
+      ],
       "solver_source": "external",
       "solver_timeout_seconds": 30
     }

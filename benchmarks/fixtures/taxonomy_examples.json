@@ -11,8 +11,6 @@
       "analysis": "differential",
       "model_family": "SAT",
       "difficulty": "tutorial",
-      "io_mode": "fixed_io",
-      "model_mode": "fixed_model",
       "parameters": {
         "number_of_rounds": 2,
         "block_bit_size": 32,
@@ -58,8 +56,6 @@
       "analysis": "differential",
       "model_family": "CP_MiniZinc",
       "difficulty": "benchmark",
-      "io_mode": "fixed_io",
-      "model_mode": "free_model",
       "parameters": {
         "number_of_rounds": 3,
         "block_bit_size": 64,
@@ -104,8 +100,6 @@
       "analysis": "linear",
       "model_family": "MILP",
       "difficulty": "benchmark",
-      "io_mode": "free_io",
-      "model_mode": "fixed_model",
       "parameters": {
         "number_of_rounds": 2,
         "block_bit_size": 128,
@@ -150,8 +144,6 @@
       "analysis": "differential",
       "model_family": "SMT",
       "difficulty": "boundary",
-      "io_mode": "fixed_io",
-      "model_mode": "fixed_model",
       "parameters": {
         "number_of_rounds": 2,
         "state_bit_size": 384

@@ -63,6 +63,7 @@ def _base_result(benchmark: Benchmark) -> dict[str, Any]:
             "num_threads": execution.num_threads,
             "task": execution.task,
             "claasp_method": execution.task.get("claasp_method_name"),
+            "observed_threads": None,
             "machine": {
                 "system": platform.system(),
                 "machine": platform.machine(),
@@ -194,8 +195,8 @@ class DockerRunner:
                     capture_output=True,
                     timeout=benchmark.execution.timeout_seconds,
                 )
-                result["artifacts"]["stdout_excerpt"] = completed.stdout[-4000:]
-                result["artifacts"]["stderr_excerpt"] = completed.stderr[-4000:]
+                stdout_excerpt = completed.stdout[-4000:]
+                stderr_excerpt = completed.stderr[-4000:]
                 worker_result_path = Path(tmp) / "result.json"
                 if completed.returncode == 0:
                     if worker_result_path.exists():
@@ -203,20 +204,28 @@ class DockerRunner:
                         results = result if isinstance(result, list) else [result]
                         for item in results:
                             item["execution"]["claasp_image"] = actual_image
+                            item["artifacts"].setdefault("stdout_excerpt", stdout_excerpt)
+                            item["artifacts"].setdefault("stderr_excerpt", stderr_excerpt)
                         result = results if isinstance(result, list) else results[0]
                     else:
                         result["status"] = "unknown"
                         result["error"] = "worker completed without writing /bench/result.json"
+                        result["artifacts"]["stdout_excerpt"] = stdout_excerpt
+                        result["artifacts"]["stderr_excerpt"] = stderr_excerpt
                 else:
                     if worker_result_path.exists():
                         result = json.loads(worker_result_path.read_text(encoding="utf-8"))
                         results = result if isinstance(result, list) else [result]
                         for item in results:
                             item["execution"]["claasp_image"] = actual_image
+                            item["artifacts"].setdefault("stdout_excerpt", stdout_excerpt)
+                            item["artifacts"].setdefault("stderr_excerpt", stderr_excerpt)
                         result = results if isinstance(result, list) else results[0]
                     else:
                         result["status"] = "error"
                         result["error"] = f"docker exited with status {completed.returncode}"
+                        result["artifacts"]["stdout_excerpt"] = stdout_excerpt
+                        result["artifacts"]["stderr_excerpt"] = stderr_excerpt
             except subprocess.TimeoutExpired:
                 worker_result_path = Path(tmp) / "result.json"
                 if worker_result_path.exists():

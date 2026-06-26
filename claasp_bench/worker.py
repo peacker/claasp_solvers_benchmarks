@@ -13,6 +13,7 @@ import shutil
 import signal
 import subprocess
 import sys
+import threading
 import time
 import traceback
 from pathlib import Path
@@ -82,6 +83,61 @@ TASK_KIND_TO_METHOD = {
         "cp": "MznXorLinearModel.find_lowest_weight_xor_linear_trail",
     },
 }
+
+
+class _ProcThreadMonitor:
+    """Sample child-process thread counts via /proc during a solver run (Linux only)."""
+
+    def __init__(self, interval: float = 0.1) -> None:
+        self._interval = interval
+        self._max_threads = 1
+        self._running = False
+        self._thread: threading.Thread | None = None
+        self._our_pid = os.getpid()
+
+    def start(self) -> None:
+        self._running = True
+        self._thread = threading.Thread(target=self._run, daemon=True)
+        self._thread.start()
+
+    def stop(self) -> None:
+        self._running = False
+        if self._thread:
+            self._thread.join(timeout=0.5)
+
+    @property
+    def max_threads(self) -> int:
+        return self._max_threads
+
+    def _run(self) -> None:
+        while self._running:
+            try:
+                self._scan()
+            except Exception:
+                pass
+            time.sleep(self._interval)
+
+    def _scan(self) -> None:
+        proc_dir = Path("/proc")
+        if not proc_dir.exists():
+            return
+        for entry in proc_dir.iterdir():
+            if not entry.name.isdigit():
+                continue
+            try:
+                text = (entry / "status").read_text(encoding="utf-8", errors="ignore")
+            except (FileNotFoundError, PermissionError):
+                continue
+            data: dict[str, str] = {}
+            for line in text.splitlines():
+                if ":" in line:
+                    k, _, v = line.partition(":")
+                    data[k.strip()] = v.strip()
+            try:
+                if int(data.get("PPid", -1)) == self._our_pid:
+                    self._max_threads = max(self._max_threads, int(data.get("Threads", 1)))
+            except ValueError:
+                pass
 
 
 def _cpu_model() -> str | None:
@@ -440,12 +496,17 @@ def _run_find_one_with_model(
     cipher = _instantiate_cipher(benchmark.challenge.primitive, parameters)
     cipher_build_time = round(time.perf_counter() - cipher_start, 6)
     model = model_class(cipher)
+    call_start = time.perf_counter()
     solution = model.find_one_xor_differential_trail(solver_name=solver_name, **kwargs)
+    call_elapsed = time.perf_counter() - call_start
     solution = _safe_public_value(solution)
     variables = getattr(model, "_variables_list", None) or getattr(model, "_variables_declarations", None)
     constraints = getattr(model, "_model_constraints", None)
     build_time = solution.get("building_time_seconds", solution.get("building_time"))
     solve_time = solution.get("solving_time_seconds")
+    if solve_time is None and build_time is not None:
+        # Estimate solve time as total call time minus model build time
+        solve_time = round(max(0.0, call_elapsed - build_time), 6)
     return {
         "status": _normalise_status(solution.get("status")),
         "cipher": _cipher_metadata(cipher, parameters),
@@ -839,6 +900,22 @@ def _machine_metadata() -> dict[str, Any]:
     }
 
 
+def _monitor_solver(
+    benchmark: Any,
+    solver_name: str,
+    solver_family: str | None,
+    timeout_seconds: Any,
+) -> tuple[dict[str, Any], int]:
+    """Run a solver with thread monitoring; return (details, max_threads)."""
+    monitor = _ProcThreadMonitor()
+    monitor.start()
+    try:
+        details = _run_solver_with_timeout(benchmark, solver_name, solver_family, timeout_seconds)
+    finally:
+        monitor.stop()
+    return details, monitor.max_threads
+
+
 def _apply_details(result: dict[str, Any], details: dict[str, Any]) -> None:
     result["status"] = details.get("status", result["status"])
     result["artifacts"]["worker_details"] = details
@@ -848,6 +925,8 @@ def _apply_details(result: dict[str, Any], details: dict[str, Any]) -> None:
     result["model"].update(details.get("model", {}))
     result["claasp_output"].update(details.get("claasp_output", {}))
     result["solver_output"].update(details.get("solver_output", {}))
+    if "observed_threads" in details:
+        result["execution"]["observed_threads"] = details["observed_threads"]
 
 
 def _finalize_timing(result: dict[str, Any], started: float, start_usage: Any) -> None:
@@ -890,12 +969,13 @@ def run_worker(manifest_path: Path, result_path: Path) -> int:
             solver_started = time.perf_counter()
             solver_usage = resource.getrusage(resource.RUSAGE_SELF)
             try:
-                details = _run_solver_with_timeout(
+                details, observed_threads = _monitor_solver(
                     benchmark,
                     row.get("solver_name"),
                     solver_family,
                     task.get("solver_timeout_seconds"),
                 )
+                details["observed_threads"] = observed_threads
                 details["solver_output"].update(
                     {
                         "solver_brand_name": row.get("solver_brand_name"),
@@ -967,12 +1047,13 @@ def run_worker(manifest_path: Path, result_path: Path) -> int:
         elif task_kind == "claasp_cipher_metadata":
             details = _run_claasp_cipher_metadata(benchmark)
         elif task_kind == "claasp_sat_xor_differential_find_one":
-            details = _run_solver_with_timeout(
+            details, observed_threads = _monitor_solver(
                 benchmark,
                 benchmark.execution.solver,
                 MODEL_FAMILY_TO_SOLVER_FAMILY.get(benchmark.challenge.model_family),
                 task.get("solver_timeout_seconds"),
             )
+            details["observed_threads"] = observed_threads
         elif task_kind in {
             "claasp_sat_xor_differential_enumerate_fixed_weight",
             "claasp_xor_differential_enumerate_fixed_weight",
@@ -981,12 +1062,13 @@ def run_worker(manifest_path: Path, result_path: Path) -> int:
             "claasp_xor_linear_enumerate_fixed_weight",
             "claasp_xor_linear_find_lowest_weight",
         }:
-            details = _run_solver_with_timeout(
+            details, observed_threads = _monitor_solver(
                 benchmark,
                 benchmark.execution.solver,
                 MODEL_FAMILY_TO_SOLVER_FAMILY.get(benchmark.challenge.model_family, "sat"),
                 task.get("solver_timeout_seconds"),
             )
+            details["observed_threads"] = observed_threads
         elif task_kind == "synthetic":
             details = _run_synthetic(task)
         else:
