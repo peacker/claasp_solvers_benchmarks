@@ -21,7 +21,8 @@ HTML = """<!doctype html>
 <body>
   <header>
     <h1>CLAASP Solver Benchmarks</h1>
-    <p>Filter by primitive, CLAASP method, model family, solver, status, and duration.</p>
+    <p>Filter by primitive, CLAASP method, model family, solver, analysis, status, and duration. Multiple values can be selected per filter.</p>
+    <p class="site-meta" id="site-generated"></p>
   </header>
   <main>
     <section class="filter-panel" aria-label="Benchmark filters">
@@ -40,6 +41,7 @@ HTML = """<!doctype html>
         <div><strong id="best">-</strong><span>best time</span></div>
         <div><strong id="median">-</strong><span>median time</span></div>
         <div><strong id="statuses">-</strong><span>statuses</span></div>
+        <div><strong id="bench-dates">-</strong><span>benchmark dates</span></div>
       </section>
       <div class="toolbar table-toolbar">
         <section>
@@ -49,6 +51,10 @@ HTML = """<!doctype html>
             <button type="button" class="display-button" data-table="summary" data-mode="wrap">Wrap Cells</button>
             <button type="button" class="display-button" data-table="summary" data-mode="expanded">Expand Lines</button>
           </div>
+        </section>
+        <section>
+          <h2>Export</h2>
+          <button type="button" id="export-summary-csv">Export CSV</button>
         </section>
       </div>
       <table id="summary-table" class="compact">
@@ -72,6 +78,10 @@ HTML = """<!doctype html>
             <button type="button" class="display-button" data-table="runs" data-mode="wrap">Wrap Cells</button>
             <button type="button" class="display-button" data-table="runs" data-mode="expanded">Expand Lines</button>
           </div>
+        </section>
+        <section>
+          <h2>Export</h2>
+          <button type="button" id="export-runs-csv">Export CSV</button>
         </section>
       </div>
       <table id="runs-table" class="compact">
@@ -116,6 +126,11 @@ p {
   margin: 0;
   color: #57606f;
 }
+.site-meta {
+  font-size: 12px;
+  color: #8395a7;
+  margin-top: 6px;
+}
 .section-heading {
   grid-column: 1 / -1;
   position: sticky;
@@ -139,9 +154,7 @@ label {
   min-width: 0;
 }
 .column-controls {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 14px;
+  display: block;
   margin-bottom: 10px;
 }
 .column-controls label {
@@ -149,6 +162,16 @@ label {
   align-items: center;
   gap: 6px;
   font-weight: 500;
+}
+.col-ctrl-btns {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.col-checkboxes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
 }
 select {
   width: 100%;
@@ -192,7 +215,7 @@ button {
 }
 .toolbar {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   gap: 18px;
   align-items: start;
   position: sticky;
@@ -276,6 +299,14 @@ th {
   position: sticky;
   top: 0;
   white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+}
+th:hover {
+  background: #e8eaed;
+}
+th.sorted {
+  background: #dde1e5;
 }
 .resizable-th {
   position: relative;
@@ -305,6 +336,68 @@ th {
   font: 12px ui-monospace, SFMono-Regular, Menlo, monospace;
   resize: both;
 }
+.filter-group {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.filter-label {
+  font-size: 13px;
+  font-weight: 600;
+}
+.multi-select {
+  position: relative;
+}
+.multi-select-toggle {
+  width: 100%;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.multi-select-toggle.ms-active {
+  background: #e8f4fd;
+  border-color: #3498db;
+  color: #1a5276;
+}
+.multi-select-panel {
+  display: none;
+  position: absolute;
+  top: calc(100% + 2px);
+  left: 0;
+  min-width: 100%;
+  max-height: 260px;
+  overflow-y: auto;
+  background: #ffffff;
+  border: 1px solid #ced6e0;
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+  z-index: 100;
+  padding: 4px 0;
+}
+.multi-select.open .multi-select-panel {
+  display: block;
+}
+.ms-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 12px;
+  font-size: 13px;
+  font-weight: 400;
+  cursor: pointer;
+  white-space: nowrap;
+  min-width: 0;
+}
+.ms-option:hover {
+  background: #f1f3f5;
+}
+.ms-all {
+  font-weight: 600;
+  border-bottom: 1px solid #edf0f2;
+  padding-bottom: 8px;
+  margin-bottom: 2px;
+}
 @media (max-width: 760px) {
   .toolbar {
     grid-template-columns: 1fr;
@@ -317,10 +410,14 @@ const dimensions = [
   ["tier", "Tier", record => record.tier],
   ["primitive", "Primitive", record => record.challenge.primitive],
   ["primitive_family", "Primitive Family", record => record.challenge.primitive_family],
+  ["analysis", "Analysis", record => record.challenge.analysis],
   ["claasp_method", "CLAASP Method", record => claaspMethod(record)],
   ["model_family", "Model", record => record.challenge.model_family],
   ["solver", "Solver", record => record.execution.solver],
-  ["cores", "Cores", record => String((record.execution.machine || {}).usable_cpu_count ?? "NA")],
+  ["cores", "Cores", record => {
+    const n = record.execution.num_threads;
+    return n !== null && n !== undefined ? String(n) : String((record.execution.machine || {}).usable_cpu_count ?? "NA");
+  }],
   ["duration", "Duration", record => durationBucket(record.timing.wall_time_seconds)],
   ["status", "Status", record => record.status],
 ];
@@ -338,7 +435,7 @@ const columnDescriptions = {
   solver_version: "Solver version detected from the executable, when available.",
   solver_options: "Executable, options, selector, and command format used to call the solver.",
   status: "Normalized run status.",
-  cores: "Usable CPU cores seen by the worker process (from sched_getaffinity or cpu_count).",
+  cores: "Thread count configured for this run (execution.num_threads if set, otherwise usable_cpu_count). When configured count differs from available cores, shown as 'N (avail: M)'.",
   build: "Model building time reported by CLAASP, when available.",
   solve: "Solver time reported by CLAASP, when available.",
   wall: "End-to-end wall-clock time measured by the benchmark runner.",
@@ -359,13 +456,13 @@ const summaryColumnDescriptions = {
   median_wall: "Median wall-clock time in this summary group.",
 };
 const summaryColumns = [
-  ["instance", "Instance", item => item.key],
-  ["runs", "Runs", item => item.runs],
-  ["solvers", "Solvers", item => item.solvers],
-  ["statuses", "Statuses", item => item.statuses],
-  ["total_wall", "Total Wall", item => item.totalWall],
-  ["best_wall", "Best Wall", item => item.bestWall],
-  ["median_wall", "Median Wall", item => item.medianWall],
+  ["instance", "Instance", item => item.key, item => item.key],
+  ["runs", "Runs", item => item.runs, item => item.runs],
+  ["solvers", "Solvers", item => item.solvers, item => item.solvers],
+  ["statuses", "Statuses", item => item.statuses, item => item.statuses],
+  ["total_wall", "Total Wall", item => item.totalWall, item => item.totalWallRaw],
+  ["best_wall", "Best Wall", item => item.bestWall, item => item.bestWallRaw],
+  ["median_wall", "Median Wall", item => item.medianWall, item => item.medianWallRaw],
 ];
 const runColumns = [
   ["tier", "Tier", record => record.tier],
@@ -381,7 +478,15 @@ const runColumns = [
   ["solver_version", "Solver Version", record => (record.solver_output || {}).solver_version],
   ["solver_options", "Solver Options", record => solverOptions(record)],
   ["status", "Status", record => record.status],
-  ["cores", "Cores", record => (record.execution.machine || {}).usable_cpu_count],
+  ["cores", "Cores", record => {
+    const machine = record.execution.machine || {};
+    const n = record.execution.num_threads;
+    const usable = machine.usable_cpu_count;
+    if (n !== null && n !== undefined) {
+      return usable !== null && usable !== undefined && usable !== n ? `${n} (avail: ${usable})` : String(n);
+    }
+    return usable !== null && usable !== undefined ? String(usable) : "NA";
+  }],
   ["build", "Build", record => fmtSeconds(record.timing.build_time_seconds)],
   ["solve", "Solve", record => fmtSeconds(record.timing.solve_time_seconds)],
   ["wall", "Wall", record => fmtSeconds(record.timing.wall_time_seconds)],
@@ -395,9 +500,14 @@ const runColumns = [
 let allResults = [];
 let taxonomy = {};
 let visibleColumns = new Set(runColumns.map(([id]) => id));
+const filterState = new Map();
 const tableState = {
   runs: {displayMode: "compact", columnWidths: {}},
   summary: {displayMode: "compact", columnWidths: {}},
+};
+const sortState = {
+  runs: {column: null, ascending: true},
+  summary: {column: null, ascending: true},
 };
 
 function escapeHtml(value) {
@@ -424,6 +534,10 @@ function fmtValue(value) {
 
 function fmtSeconds(value) {
   return value === null || value === undefined ? "NA" : `${Number(value).toFixed(3)}s`;
+}
+
+function fmtDate(iso) {
+  return iso ? String(iso).slice(0, 10) : "-";
 }
 
 function fmtMemory(value) {
@@ -488,26 +602,95 @@ function fieldValue(record, fieldId) {
 }
 
 function buildFilters() {
-  const filters = document.getElementById("filters");
-  filters.innerHTML = "";
+  const container = document.getElementById("filters");
+  container.innerHTML = "";
   for (const [field, labelText, getter] of dimensions) {
-    const values = [...new Set(allResults.map(record => getter(record)).filter(Boolean))].sort();
-    const label = document.createElement("label");
-    label.textContent = labelText;
-    const select = document.createElement("select");
-    select.id = `filter-${field}`;
-    select.innerHTML = `<option value="">All</option>` + values.map(value => `<option>${value}</option>`).join("");
-    select.addEventListener("change", render);
-    label.appendChild(select);
-    filters.appendChild(label);
+    const values = [...new Set(allResults.map(r => getter(r)).filter(Boolean))].sort();
+    filterState.set(field, new Set());
+    const wrapper = document.createElement("div");
+    wrapper.className = "filter-group";
+    const lbl = document.createElement("div");
+    lbl.className = "filter-label";
+    lbl.textContent = labelText;
+    wrapper.appendChild(lbl);
+    const ms = document.createElement("div");
+    ms.className = "multi-select";
+    const toggle = document.createElement("button");
+    toggle.type = "button";
+    toggle.className = "multi-select-toggle";
+    toggle.id = `ms-toggle-${field}`;
+    toggle.textContent = "All ▾";
+    toggle.addEventListener("click", e => {
+      e.stopPropagation();
+      document.querySelectorAll(".multi-select.open").forEach(el => { if (el !== ms) el.classList.remove("open"); });
+      ms.classList.toggle("open");
+    });
+    const panel = document.createElement("div");
+    panel.className = "multi-select-panel";
+    const allLabel = document.createElement("label");
+    allLabel.className = "ms-option ms-all";
+    const allCb = document.createElement("input");
+    allCb.type = "checkbox";
+    allCb.checked = true;
+    allCb.addEventListener("change", () => {
+      filterState.get(field).clear();
+      panel.querySelectorAll("input.ms-value").forEach(cb => { cb.checked = false; });
+      updateToggleText(field);
+      render();
+    });
+    allLabel.appendChild(allCb);
+    allLabel.append(" All");
+    panel.appendChild(allLabel);
+    for (const v of values) {
+      const optLabel = document.createElement("label");
+      optLabel.className = "ms-option";
+      const optCb = document.createElement("input");
+      optCb.type = "checkbox";
+      optCb.className = "ms-value";
+      optCb.value = v;
+      optCb.addEventListener("change", () => {
+        const state = filterState.get(field);
+        if (optCb.checked) state.add(v);
+        else state.delete(v);
+        allCb.checked = state.size === 0;
+        updateToggleText(field);
+        render();
+      });
+      optLabel.appendChild(optCb);
+      optLabel.append(` ${v}`);
+      panel.appendChild(optLabel);
+    }
+    ms.appendChild(toggle);
+    ms.appendChild(panel);
+    wrapper.appendChild(ms);
+    container.appendChild(wrapper);
+  }
+}
+
+function updateToggleText(field) {
+  const toggle = document.getElementById(`ms-toggle-${field}`);
+  if (!toggle) return;
+  const state = filterState.get(field);
+  if (!state || state.size === 0) {
+    toggle.textContent = "All ▾";
+    toggle.classList.remove("ms-active");
+  } else if (state.size === 1) {
+    toggle.textContent = `${[...state][0]} ▾`;
+    toggle.classList.add("ms-active");
+  } else {
+    toggle.textContent = `${state.size} selected ▾`;
+    toggle.classList.add("ms-active");
   }
 }
 
 function filteredResults() {
-  return allResults.filter(record => dimensions.every(field => {
-    const selected = document.getElementById(`filter-${field[0]}`).value;
-    return !selected || field[2](record) === selected;
-  }));
+  return allResults.filter(record =>
+    dimensions.every(([field, , getter]) => {
+      const state = filterState.get(field);
+      if (!state || state.size === 0) return true;
+      return state.has(getter(record));
+    })
+  );
 }
 
 function instanceKey(record) {
@@ -521,17 +704,51 @@ function instanceKey(record) {
 
 function buildColumnControls() {
   const controls = document.getElementById("column-controls");
-  controls.innerHTML = runColumns.map(([id, label]) => `
-    <label><input type="checkbox" data-column="${id}" checked> ${escapeHtml(label)}</label>
-  `).join("");
-  controls.querySelectorAll("input[type='checkbox']").forEach(input => {
-    input.addEventListener("change", event => {
-      const id = event.target.dataset.column;
-      if (event.target.checked) visibleColumns.add(id);
-      else visibleColumns.delete(id);
+  controls.innerHTML = "";
+  const btnRow = document.createElement("div");
+  btnRow.className = "col-ctrl-btns";
+  const selAll = document.createElement("button");
+  selAll.type = "button";
+  selAll.textContent = "Select All";
+  selAll.addEventListener("click", () => {
+    controls.querySelectorAll("input[data-column]").forEach(cb => {
+      cb.checked = true;
+      visibleColumns.add(cb.dataset.column);
+    });
+    render();
+  });
+  const deselAll = document.createElement("button");
+  deselAll.type = "button";
+  deselAll.textContent = "Deselect All";
+  deselAll.addEventListener("click", () => {
+    controls.querySelectorAll("input[data-column]").forEach(cb => {
+      cb.checked = false;
+      visibleColumns.delete(cb.dataset.column);
+    });
+    render();
+  });
+  btnRow.appendChild(selAll);
+  btnRow.appendChild(deselAll);
+  controls.appendChild(btnRow);
+  const cbBox = document.createElement("div");
+  cbBox.className = "col-checkboxes";
+  runColumns.forEach(([id, label]) => {
+    const lbl = document.createElement("label");
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.dataset.column = id;
+    cb.checked = true;
+    cb.addEventListener("change", e => {
+      const colId = e.target.dataset.column;
+      if (e.target.checked) visibleColumns.add(colId);
+      else visibleColumns.delete(colId);
       render();
     });
+    lbl.appendChild(cb);
+    lbl.append(` ${label}`);
+    cbBox.appendChild(lbl);
   });
+  controls.appendChild(cbBox);
 }
 
 function buildTabs() {
@@ -567,13 +784,27 @@ function minColumnWidth(label) {
 
 function renderTableHeader({tableName, tableId, colgroupId, headerId, columns, descriptions}) {
   const state = tableState[tableName];
-  const active = columns;
-  document.getElementById(colgroupId).innerHTML = active.map(([id, label]) => `
+  const st = sortState[tableName];
+  document.getElementById(colgroupId).innerHTML = columns.map(([id, label]) => `
     <col data-table="${tableName}" data-column="${id}" style="${state.displayMode === "expanded" ? "" : `width: ${state.columnWidths[id] || `${minColumnWidth(label)}px`}`}">
   `).join("");
-  document.getElementById(headerId).innerHTML = active.map(([id, label]) => `
-    <th class="resizable-th" data-column="${id}" title="${escapeHtml(descriptions[id] || label)}">${escapeHtml(label)}<span class="resize-handle" data-table="${tableName}" data-column="${id}"></span></th>
-  `).join("");
+  document.getElementById(headerId).innerHTML = columns.map(([id, label]) => {
+    const isSorted = st && st.column === id;
+    const arrow = isSorted ? (st.ascending ? " ↑" : " ↓") : "";
+    return `<th class="resizable-th${isSorted ? " sorted" : ""}" data-column="${id}" data-table-name="${tableName}" title="${escapeHtml(descriptions[id] || label)}">${escapeHtml(label)}${arrow}<span class="resize-handle" data-table="${tableName}" data-column="${id}"></span></th>`;
+  }).join("");
+  document.querySelectorAll(`#${headerId} th`).forEach(th => {
+    th.addEventListener("click", e => {
+      if (e.target.closest(".resize-handle")) return;
+      const col = th.dataset.column;
+      const tName = th.dataset.tableName;
+      const sortSt = sortState[tName];
+      if (!sortSt) return;
+      if (sortSt.column === col) sortSt.ascending = !sortSt.ascending;
+      else { sortSt.column = col; sortSt.ascending = true; }
+      render();
+    });
+  });
   document.querySelectorAll(`#${tableId} .resize-handle`).forEach(handle => {
     handle.addEventListener("mousedown", startResize);
   });
@@ -623,30 +854,75 @@ function startResize(event) {
   document.addEventListener("mouseup", stop);
 }
 
-function renderBenchmarkSummary(records) {
+function sortedRunData(records) {
+  const st = sortState.runs;
+  if (!st.column) return records;
+  const colDef = runColumns.find(([id]) => id === st.column);
+  if (!colDef) return records;
+  const getter = colDef[2];
+  return [...records].sort((a, b) => {
+    const va = String(getter(a) ?? "");
+    const vb = String(getter(b) ?? "");
+    const na = parseFloat(va);
+    const nb = parseFloat(vb);
+    const cmp = (!isNaN(na) && !isNaN(nb)) ? na - nb : va.localeCompare(vb, undefined, {numeric: true});
+    return st.ascending ? cmp : -cmp;
+  });
+}
+
+function buildSummaryData(records) {
   const groups = new Map();
   for (const record of records) {
     const key = instanceKey(record);
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(record);
   }
-  const summaryRows = [...groups.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([key, items]) => {
-    const durations = items.map(record => record.timing.wall_time_seconds).filter(value => typeof value === "number");
-    const statuses = items.reduce((counts, record) => {
-      counts[record.status] = (counts[record.status] || 0) + 1;
-      return counts;
-    }, {});
-    const solvers = [...new Set(items.map(record => record.execution.solver).filter(Boolean))].sort();
+  return [...groups.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([key, items]) => {
+    const durations = items.map(r => r.timing.wall_time_seconds).filter(v => typeof v === "number");
+    const statuses = items.reduce((counts, r) => { counts[r.status] = (counts[r.status] || 0) + 1; return counts; }, {});
+    const solvers = [...new Set(items.map(r => r.execution.solver).filter(Boolean))].sort();
+    const total = durations.length ? durations.reduce((s, v) => s + v, 0) : null;
+    const best = durations.length ? Math.min(...durations) : null;
+    const med = median(durations);
     return {
       key,
       runs: items.length,
       solvers: solvers.join(", ") || "NA",
       statuses: Object.entries(statuses).map(([k, v]) => `${k}: ${v}`).join(", ") || "NA",
-      totalWall: durations.length ? fmtSeconds(durations.reduce((total, value) => total + value, 0)) : "NA",
-      bestWall: durations.length ? fmtSeconds(Math.min(...durations)) : "NA",
-      medianWall: fmtSeconds(median(durations)),
+      totalWall: total !== null ? fmtSeconds(total) : "NA",
+      totalWallRaw: total,
+      bestWall: best !== null ? fmtSeconds(best) : "NA",
+      bestWallRaw: best,
+      medianWall: fmtSeconds(med),
+      medianWallRaw: med,
     };
   });
+}
+
+function sortedSummaryData(summaryRows) {
+  const st = sortState.summary;
+  if (!st.column) return summaryRows;
+  const colDef = summaryColumns.find(([id]) => id === st.column);
+  if (!colDef) return summaryRows;
+  const rawGetter = colDef[3];
+  return [...summaryRows].sort((a, b) => {
+    const va = rawGetter(a);
+    const vb = rawGetter(b);
+    const aNum = typeof va === "number";
+    const bNum = typeof vb === "number";
+    if (aNum || bNum) {
+      const na = aNum ? va : (st.ascending ? Infinity : -Infinity);
+      const nb = bNum ? vb : (st.ascending ? Infinity : -Infinity);
+      return st.ascending ? na - nb : nb - na;
+    }
+    const sa = String(va ?? "");
+    const sb = String(vb ?? "");
+    return st.ascending ? sa.localeCompare(sb, undefined, {numeric: true}) : sb.localeCompare(sa, undefined, {numeric: true});
+  });
+}
+
+function renderBenchmarkSummary(records) {
+  const summaryRows = sortedSummaryData(buildSummaryData(records));
   renderSummaryHeader();
   document.getElementById("summary-rows").innerHTML = summaryRows.map(item => `
       <tr>
@@ -670,10 +946,14 @@ function render() {
   document.getElementById("best").textContent = durations.length ? fmtSeconds(Math.min(...durations)) : "-";
   document.getElementById("median").textContent = fmtSeconds(median(durations));
   document.getElementById("statuses").textContent = Object.entries(statusCounts).map(([k, v]) => `${k}: ${v}`).join(", ") || "-";
+  const timestamps = records.map(r => r.created_at).filter(Boolean).sort();
+  const earliest = timestamps.length ? fmtDate(timestamps[0]) : "-";
+  const latest = timestamps.length ? fmtDate(timestamps[timestamps.length - 1]) : "-";
+  document.getElementById("bench-dates").textContent = earliest === latest ? earliest : `${earliest} – ${latest}`;
   renderBenchmarkSummary(records);
   renderRunHeader();
   const active = runColumns.filter(([id]) => visibleColumns.has(id));
-  document.getElementById("rows").innerHTML = records.map(record => `
+  document.getElementById("rows").innerHTML = sortedRunData(records).map(record => `
     <tr>
       ${active.map(([, , getter]) => {
         const value = fmtValue(getter(record));
@@ -683,6 +963,38 @@ function render() {
   `).join("");
   bindCellTooltips();
 }
+
+function exportCsv(tableName) {
+  const records = filteredResults();
+  let headers, rows;
+  if (tableName === "runs") {
+    const active = runColumns.filter(([id]) => visibleColumns.has(id));
+    headers = active.map(([, label]) => label);
+    rows = sortedRunData(records).map(record =>
+      active.map(([, , getter]) => String(getter(record) ?? ""))
+    );
+  } else {
+    headers = summaryColumns.map(([, label]) => label);
+    rows = sortedSummaryData(buildSummaryData(records)).map(item =>
+      summaryColumns.map(([, , getter]) => String(getter(item) ?? ""))
+    );
+  }
+  const esc = v => `"${v.replaceAll('"', '""')}"`;
+  const csv = [headers.map(esc).join(","), ...rows.map(r => r.map(esc).join(","))].join("\\n");
+  const blob = new Blob([csv], {type: "text/csv"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `claasp_benchmarks_${tableName}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+document.addEventListener("click", () => {
+  document.querySelectorAll(".multi-select.open").forEach(el => el.classList.remove("open"));
+});
 
 function bindCellTooltips() {
   const tooltip = document.getElementById("cell-tooltip");
@@ -709,6 +1021,11 @@ function moveTooltip(event) {
   tooltip.style.top = `${Math.max(12, top)}px`;
 }
 
+function buildExportButtons() {
+  document.getElementById("export-summary-csv").addEventListener("click", () => exportCsv("summary"));
+  document.getElementById("export-runs-csv").addEventListener("click", () => exportCsv("runs"));
+}
+
 Promise.all([
   fetch(`results.json?v=${assetVersion}`).then(response => response.json()),
   fetch(`taxonomy.json?v=${assetVersion}`).then(response => response.json())
@@ -716,10 +1033,13 @@ Promise.all([
   .then(([results, taxonomyData]) => {
     allResults = results;
     taxonomy = taxonomyData;
+    const generatedAt = new Date(parseInt(assetVersion) * 1000);
+    document.getElementById("site-generated").textContent = `Last updated: ${generatedAt.toUTCString().replace(/ GMT$/, " UTC")}`;
     buildFilters();
     buildTabs();
     buildColumnControls();
     buildDisplayControls();
+    buildExportButtons();
     render();
   });
 """
