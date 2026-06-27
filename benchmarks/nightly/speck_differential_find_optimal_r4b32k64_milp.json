@@ -1,28 +1,22 @@
 {
   "id": "nightly_speck_xor_differential_find_optimal_milp",
   "tier": "nightly",
-  "challenge": {
-    "id": "speck_xor_differential_find_optimal_4r",
-    "name": "Speck XOR differential find-optimal 4-round MILP solver sweep",
-    "primitive": "Speck-32/64",
-    "primitive_family": "ARX",
-    "goal": "prove_bound",
-    "analysis": "differential",
-    "model_family": "MILP",
-    "difficulty": "benchmark",
-    "parameters": {
-      "number_of_rounds": 4,
-      "block_bit_size": 32,
-      "key_bit_size": 64
-    },
-    "tags": [
-      "nightly",
-      "docker",
-      "claasp",
-      "milp",
-      "optimal"
-    ]
+  "primitive": "Speck-32/64",
+  "primitive_family": "ARX",
+  "goal": "prove_bound",
+  "analysis": "differential",
+  "parameters": {
+    "number_of_rounds": 4,
+    "block_bit_size": 32,
+    "key_bit_size": 64
   },
+  "tags": [
+    "nightly",
+    "docker",
+    "claasp",
+    "milp",
+    "optimal"
+  ],
   "execution": {
     "runner": "docker",
     "solver": "all_available",
@@ -30,16 +24,12 @@
     "timeout_seconds": 3600,
     "memory_mb": 8192,
     "expected_status": "sat",
-    "task": {
-      "kind": "claasp_xor_differential_find_lowest_weight",
-      "claasp_method_name": "find_lowest_weight_xor_differential_trail",
-      "status": "sat",
-      "available_only": true,
-      "solver_families": [
-        "milp"
-      ],
-      "solver_source": "external",
-      "solver_timeout_seconds": 300
-    }
+    "kind": "claasp_xor_differential_find_lowest_weight",
+    "available_only": true,
+    "solver_families": [
+      "milp"
+    ],
+    "solver_source": "external",
+    "solver_timeout_seconds": 300
   }
 }

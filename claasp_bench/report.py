@@ -62,7 +62,6 @@ def markdown_report(results_dir: Path) -> str:
         "|---|---|---|---|---|---|---|---|---|---|---|---|---:|---:|---:|---:|---:|---|---|---|---|---|",
     ]
     for record in sorted(records, key=lambda item: item["benchmark_id"]):
-        challenge = record["challenge"]
         execution = record["execution"]
         cipher = record.get("cipher", {})
         model = record.get("model", {})
@@ -71,13 +70,13 @@ def markdown_report(results_dir: Path) -> str:
             "{solver_version} | {solver_options} | {status} | {cores} | {build} | {solve} | {wall} | {memory} | {model_size} | {claasp_output} | {solver_output} | "
             "{error} | {artifacts} |".format(
                 benchmark=record["benchmark_id"],
-                primitive=challenge["primitive"],
+                primitive=record["primitive"],
                 params=_fmt_cipher_parameters(cipher),
                 arch=_fmt_arch(execution.get("machine", {})),
                 method=_fmt_value(execution.get("claasp_method")),
-                goal=challenge["goal"],
-                analysis=challenge["analysis"],
-                model_family=challenge["model_family"],
+                goal=record["goal"],
+                analysis=record["analysis"],
+                model_family=record.get("model_family"),
                 solver=execution["solver"],
                 solver_version=_fmt_value(record.get("solver_output", {}).get("solver_version")),
                 solver_options=_fmt_value(

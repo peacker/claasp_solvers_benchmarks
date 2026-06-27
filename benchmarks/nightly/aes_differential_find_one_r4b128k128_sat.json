@@ -1,28 +1,22 @@
 {
   "id": "nightly_aes_xor_differential_find_one_sat",
   "tier": "nightly",
-  "challenge": {
-    "id": "aes_xor_differential_find_one_4r",
-    "name": "AES XOR differential find-one 4-round SAT solver sweep",
-    "primitive": "AES-128",
-    "primitive_family": "word_based_SPN",
-    "goal": "find_one_trail",
-    "analysis": "differential",
-    "model_family": "SAT",
-    "difficulty": "benchmark",
-    "parameters": {
-      "number_of_rounds": 4,
-      "block_bit_size": 128,
-      "key_bit_size": 128
-    },
-    "tags": [
-      "nightly",
-      "docker",
-      "claasp",
-      "aes",
-      "sat"
-    ]
+  "primitive": "AES-128",
+  "primitive_family": "word_based_SPN",
+  "goal": "find_one_trail",
+  "analysis": "differential",
+  "parameters": {
+    "number_of_rounds": 4,
+    "block_bit_size": 128,
+    "key_bit_size": 128
   },
+  "tags": [
+    "nightly",
+    "docker",
+    "claasp",
+    "aes",
+    "sat"
+  ],
   "execution": {
     "runner": "docker",
     "solver": "all_available",
@@ -30,16 +24,12 @@
     "timeout_seconds": 3600,
     "memory_mb": 8192,
     "expected_status": "sat",
-    "task": {
-      "kind": "claasp_xor_differential_find_one",
-      "claasp_method_name": "find_one_xor_differential_trail",
-      "status": "sat",
-      "available_only": true,
-      "solver_families": [
-        "sat"
-      ],
-      "solver_source": "external",
-      "solver_timeout_seconds": 300
-    }
+    "kind": "claasp_xor_differential_find_one",
+    "available_only": true,
+    "solver_families": [
+      "sat"
+    ],
+    "solver_source": "external",
+    "solver_timeout_seconds": 300
   }
 }

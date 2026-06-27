@@ -1,29 +1,23 @@
 {
   "id": "smoke_ascon_xor_linear_find_all_fixed_weight_all_models",
   "tier": "smoke",
-  "challenge": {
-    "id": "ascon_xor_linear_find_all_fixed_weight",
-    "name": "Ascon XOR linear fixed-weight find-all solver sweep",
-    "primitive": "Ascon",
-    "primitive_family": "permutation",
-    "goal": "enumerate_trails",
-    "analysis": "linear",
-    "model_family": "hybrid",
-    "difficulty": "tutorial",
-    "parameters": {
-      "number_of_rounds": 2,
-      "state_bit_size": 320,
-      "weight": 1
-    },
-    "tags": [
-      "smoke",
-      "docker",
-      "claasp",
-      "ascon",
-      "linear",
-      "enumeration"
-    ]
+  "primitive": "Ascon",
+  "primitive_family": "permutation",
+  "goal": "enumerate_trails",
+  "analysis": "linear",
+  "parameters": {
+    "number_of_rounds": 2,
+    "state_bit_size": 320,
+    "weight": 1
   },
+  "tags": [
+    "smoke",
+    "docker",
+    "claasp",
+    "ascon",
+    "linear",
+    "enumeration"
+  ],
   "execution": {
     "runner": "docker",
     "solver": "all_available",
@@ -31,20 +25,16 @@
     "timeout_seconds": 300,
     "memory_mb": 4096,
     "expected_status": "sat",
-    "task": {
-      "kind": "claasp_xor_linear_enumerate_fixed_weight",
-      "claasp_method_name": "find_all_xor_linear_trails_with_fixed_weight",
-      "status": "sat",
-      "fixed_weight": 1,
-      "available_only": true,
-      "solver_families": [
-        "sat",
-        "smt",
-        "milp",
-        "cp"
-      ],
-      "solver_source": "external",
-      "solver_timeout_seconds": 30
-    }
+    "kind": "claasp_xor_linear_enumerate_fixed_weight",
+    "fixed_weight": 1,
+    "available_only": true,
+    "solver_families": [
+      "sat",
+      "smt",
+      "milp",
+      "cp"
+    ],
+    "solver_source": "external",
+    "solver_timeout_seconds": 30
   }
 }

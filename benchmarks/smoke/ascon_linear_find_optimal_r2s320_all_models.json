@@ -1,28 +1,22 @@
 {
   "id": "smoke_ascon_xor_linear_find_optimal_all_models",
   "tier": "smoke",
-  "challenge": {
-    "id": "ascon_xor_linear_find_optimal",
-    "name": "Ascon XOR linear find-optimal solver sweep",
-    "primitive": "Ascon",
-    "primitive_family": "permutation",
-    "goal": "prove_bound",
-    "analysis": "linear",
-    "model_family": "hybrid",
-    "difficulty": "tutorial",
-    "parameters": {
-      "number_of_rounds": 2,
-      "state_bit_size": 320
-    },
-    "tags": [
-      "smoke",
-      "docker",
-      "claasp",
-      "ascon",
-      "linear",
-      "optimal"
-    ]
+  "primitive": "Ascon",
+  "primitive_family": "permutation",
+  "goal": "prove_bound",
+  "analysis": "linear",
+  "parameters": {
+    "number_of_rounds": 2,
+    "state_bit_size": 320
   },
+  "tags": [
+    "smoke",
+    "docker",
+    "claasp",
+    "ascon",
+    "linear",
+    "optimal"
+  ],
   "execution": {
     "runner": "docker",
     "solver": "all_available",
@@ -30,19 +24,15 @@
     "timeout_seconds": 300,
     "memory_mb": 4096,
     "expected_status": "sat",
-    "task": {
-      "kind": "claasp_xor_linear_find_lowest_weight",
-      "claasp_method_name": "find_lowest_weight_xor_linear_trail",
-      "status": "sat",
-      "available_only": true,
-      "solver_families": [
-        "sat",
-        "smt",
-        "milp",
-        "cp"
-      ],
-      "solver_source": "external",
-      "solver_timeout_seconds": 30
-    }
+    "kind": "claasp_xor_linear_find_lowest_weight",
+    "available_only": true,
+    "solver_families": [
+      "sat",
+      "smt",
+      "milp",
+      "cp"
+    ],
+    "solver_source": "external",
+    "solver_timeout_seconds": 30
   }
 }

@@ -1,43 +1,33 @@
 {
   "id": "fixture_permutation_differential",
   "tier": "nightly",
-  "challenge": {
-    "id": "gimli_r2_diff_permutation",
-    "name": "Gimli permutation differential fixture",
-    "primitive": "Gimli",
-    "primitive_family": "permutation",
-    "goal": "find_one_trail",
-    "analysis": "differential",
-    "model_family": "SMT",
-    "difficulty": "boundary",
-    "parameters": {
-      "number_of_rounds": 2,
-      "state_bit_size": 384
-    },
-    "tags": [
-      "fixture"
-    ]
+  "primitive": "Gimli",
+  "primitive_family": "permutation",
+  "goal": "find_one_trail",
+  "analysis": "differential",
+  "parameters": {
+    "number_of_rounds": 2,
+    "state_bit_size": 384
   },
+  "tags": [
+    "fixture"
+  ],
   "execution": {
     "runner": "synthetic",
     "solver": "synthetic-smt",
     "timeout_seconds": 10,
     "expected_status": "sat",
-    "task": {
-      "kind": "synthetic",
-      "status": "sat",
-      "synthetic_wall_time_seconds": 0.04,
-      "synthetic_build_time_seconds": 0.015,
-      "synthetic_solve_time_seconds": 0.025,
-      "model": {
-        "variables": 384,
-        "constraints": 768,
-        "file_size_bytes": 12288
-      },
-      "solver_output": {
-        "solver_status_detail": "sat"
-      },
-      "claasp_method_name": "find_one_xor_differential_trail"
+    "kind": "synthetic",
+    "synthetic_wall_time_seconds": 0.04,
+    "synthetic_build_time_seconds": 0.015,
+    "synthetic_solve_time_seconds": 0.025,
+    "model": {
+      "variables": 384,
+      "constraints": 768,
+      "file_size_bytes": 12288
+    },
+    "solver_output": {
+      "solver_status_detail": "sat"
     }
   }
 }

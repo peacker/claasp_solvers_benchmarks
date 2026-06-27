@@ -1,26 +1,20 @@
 {
   "id": "smoke_ascon_xor_differential_find_one_all_models",
   "tier": "smoke",
-  "challenge": {
-    "id": "ascon_xor_differential_find_one",
-    "name": "Ascon XOR differential find-one solver sweep",
-    "primitive": "Ascon",
-    "primitive_family": "permutation",
-    "goal": "find_one_trail",
-    "analysis": "differential",
-    "model_family": "hybrid",
-    "difficulty": "tutorial",
-    "parameters": {
-      "number_of_rounds": 2,
-      "state_bit_size": 320
-    },
-    "tags": [
-      "smoke",
-      "docker",
-      "claasp",
-      "ascon"
-    ]
+  "primitive": "Ascon",
+  "primitive_family": "permutation",
+  "goal": "find_one_trail",
+  "analysis": "differential",
+  "parameters": {
+    "number_of_rounds": 2,
+    "state_bit_size": 320
   },
+  "tags": [
+    "smoke",
+    "docker",
+    "claasp",
+    "ascon"
+  ],
   "execution": {
     "runner": "docker",
     "solver": "all_available",
@@ -28,19 +22,15 @@
     "timeout_seconds": 300,
     "memory_mb": 4096,
     "expected_status": "sat",
-    "task": {
-      "kind": "claasp_xor_differential_find_one",
-      "claasp_method_name": "find_one_xor_differential_trail",
-      "status": "sat",
-      "available_only": true,
-      "solver_families": [
-        "sat",
-        "smt",
-        "milp",
-        "cp"
-      ],
-      "solver_source": "external",
-      "solver_timeout_seconds": 30
-    }
+    "kind": "claasp_xor_differential_find_one",
+    "available_only": true,
+    "solver_families": [
+      "sat",
+      "smt",
+      "milp",
+      "cp"
+    ],
+    "solver_source": "external",
+    "solver_timeout_seconds": 30
   }
 }

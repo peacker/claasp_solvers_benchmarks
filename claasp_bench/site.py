@@ -438,11 +438,11 @@ th.sorted {
 JS = """const assetVersion = "__ASSET_VERSION__";
 const dimensions = [
   ["tier", "Tier", record => record.tier],
-  ["primitive", "Primitive", record => record.challenge.primitive],
-  ["primitive_family", "Primitive Family", record => record.challenge.primitive_family],
-  ["analysis", "Analysis", record => record.challenge.analysis],
+  ["primitive", "Primitive", record => record.primitive],
+  ["primitive_family", "Primitive Family", record => record.primitive_family],
+  ["analysis", "Analysis", record => record.analysis],
   ["claasp_method", "CLAASP Method", record => claaspMethod(record)],
-  ["model_family", "Model", record => record.challenge.model_family],
+  ["model_family", "Model", record => record.model_family],
   ["solver", "Solver", record => record.execution.solver],
   ["cores", "Cores", record => {
     const exec = record.execution || {};
@@ -500,13 +500,13 @@ const summaryColumns = [
 const runColumns = [
   ["tier", "Tier", record => record.tier],
   ["benchmark", "Benchmark", record => record.benchmark_id],
-  ["primitive", "Primitive", record => record.challenge.primitive],
+  ["primitive", "Primitive", record => record.primitive],
   ["cipher_parameters", "Cipher Parameters", record => cipherParameters(record)],
   ["architecture", "Architecture", record => architecture(record)],
   ["claasp_method", "CLAASP Method", record => claaspMethod(record)],
-  ["goal", "Goal", record => record.challenge.goal],
-  ["analysis", "Analysis", record => record.challenge.analysis],
-  ["model", "Model", record => record.challenge.model_family],
+  ["goal", "Goal", record => record.goal],
+  ["analysis", "Analysis", record => record.analysis],
+  ["model", "Model", record => record.model_family],
   ["solver", "Solver", record => record.execution.solver],
   ["solver_version", "Solver Version", record => (record.solver_output || {}).solver_version],
   ["solver_options", "Solver Options", record => solverOptions(record)],
@@ -735,10 +735,10 @@ function filteredResults() {
 
 function instanceKey(record) {
   return [
-    record.challenge.primitive,
+    record.primitive,
     cipherParameters(record),
     claaspMethod(record),
-    record.challenge.analysis
+    record.analysis
   ].join(" | ");
 }
 

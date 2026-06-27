@@ -1,27 +1,21 @@
 {
   "id": "nightly_ascon_xor_differential_find_one_sat",
   "tier": "nightly",
-  "challenge": {
-    "id": "ascon_xor_differential_find_one_4r",
-    "name": "Ascon XOR differential find-one 4-round SAT solver sweep",
-    "primitive": "Ascon",
-    "primitive_family": "permutation",
-    "goal": "find_one_trail",
-    "analysis": "differential",
-    "model_family": "SAT",
-    "difficulty": "benchmark",
-    "parameters": {
-      "number_of_rounds": 4,
-      "state_bit_size": 320
-    },
-    "tags": [
-      "nightly",
-      "docker",
-      "claasp",
-      "ascon",
-      "sat"
-    ]
+  "primitive": "Ascon",
+  "primitive_family": "permutation",
+  "goal": "find_one_trail",
+  "analysis": "differential",
+  "parameters": {
+    "number_of_rounds": 4,
+    "state_bit_size": 320
   },
+  "tags": [
+    "nightly",
+    "docker",
+    "claasp",
+    "ascon",
+    "sat"
+  ],
   "execution": {
     "runner": "docker",
     "solver": "all_available",
@@ -29,16 +23,12 @@
     "timeout_seconds": 3600,
     "memory_mb": 8192,
     "expected_status": "sat",
-    "task": {
-      "kind": "claasp_xor_differential_find_one",
-      "claasp_method_name": "find_one_xor_differential_trail",
-      "status": "sat",
-      "available_only": true,
-      "solver_families": [
-        "sat"
-      ],
-      "solver_source": "external",
-      "solver_timeout_seconds": 300
-    }
+    "kind": "claasp_xor_differential_find_one",
+    "available_only": true,
+    "solver_families": [
+      "sat"
+    ],
+    "solver_source": "external",
+    "solver_timeout_seconds": 300
   }
 }

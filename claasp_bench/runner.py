@@ -31,37 +31,33 @@ def maxrss_to_mb(maxrss: int) -> float:
 
 
 def _base_result(benchmark: Benchmark) -> dict[str, Any]:
-    challenge = benchmark.challenge
     execution = benchmark.execution
+    execution_dict: dict[str, Any] = {
+        "runner": execution.runner,
+        "solver": execution.solver,
+        "claasp_image": execution.claasp_image,
+        "timeout_seconds": execution.timeout_seconds,
+        "memory_mb": execution.memory_mb,
+        "seed": execution.seed,
+        "expected_status": execution.expected_status,
+        "num_threads": execution.num_threads,
+        "claasp_method": None,
+        "observed_threads": None,
+    }
+    execution_dict.update(execution.task)
     return {
         "schema_version": 1,
         "benchmark_id": benchmark.id,
         "tier": benchmark.tier,
         "created_at": utc_now(),
-        "challenge": {
-            "id": challenge.id,
-            "name": challenge.name,
-            "primitive": challenge.primitive,
-            "primitive_family": challenge.primitive_family,
-            "goal": challenge.goal,
-            "analysis": challenge.analysis,
-            "model_family": challenge.model_family,
-            "difficulty": challenge.difficulty,
-            "parameters": challenge.parameters,
-            "tags": challenge.tags,
-        },
+        "primitive": benchmark.primitive,
+        "primitive_family": benchmark.primitive_family,
+        "goal": benchmark.goal,
+        "analysis": benchmark.analysis,
+        "parameters": benchmark.parameters,
+        "tags": benchmark.tags,
         "execution": {
-            "runner": execution.runner,
-            "solver": execution.solver,
-            "claasp_image": execution.claasp_image,
-            "timeout_seconds": execution.timeout_seconds,
-            "memory_mb": execution.memory_mb,
-            "seed": execution.seed,
-            "expected_status": execution.expected_status,
-            "num_threads": execution.num_threads,
-            "task": execution.task,
-            "claasp_method": execution.task.get("claasp_method_name"),
-            "observed_threads": None,
+            **execution_dict,
             "machine": {
                 "system": platform.system(),
                 "machine": platform.machine(),
@@ -76,12 +72,12 @@ def _base_result(benchmark: Benchmark) -> dict[str, Any]:
         },
         "cipher": {
             "id": None,
-            "family_name": challenge.primitive,
+            "family_name": benchmark.primitive,
             "cipher_type": None,
-            "parameters": challenge.parameters,
-            "number_of_rounds": challenge.parameters.get("number_of_rounds") or challenge.parameters.get("rounds"),
-            "block_bit_size": challenge.parameters.get("block_bit_size"),
-            "key_bit_size": challenge.parameters.get("key_bit_size"),
+            "parameters": benchmark.parameters,
+            "number_of_rounds": benchmark.parameters.get("number_of_rounds") or benchmark.parameters.get("rounds"),
+            "block_bit_size": benchmark.parameters.get("block_bit_size"),
+            "key_bit_size": benchmark.parameters.get("key_bit_size"),
             "input_bit_sizes": None,
             "output_bit_size": None,
             "component_count": None,
@@ -121,7 +117,7 @@ class SyntheticRunner:
         task = benchmark.execution.task
         duration = float(task.get("synthetic_wall_time_seconds", 0.01))
         time.sleep(min(duration, 0.05))
-        result["status"] = task.get("status", benchmark.execution.expected_status or "sat")
+        result["status"] = benchmark.execution.expected_status or "sat"
         result["timing"]["wall_time_seconds"] = round(time.perf_counter() - started, 6)
         result["timing"]["cpu_time_seconds"] = 0.0
         result["timing"]["build_time_seconds"] = task.get("synthetic_build_time_seconds")

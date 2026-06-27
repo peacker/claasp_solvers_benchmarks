@@ -15,17 +15,25 @@ A benchmark manifest describes:
 | Field | Description |
 |---|---|
 | `id` | Unique stable identifier |
-| `tier` | `smoke` (runs on every push to main), `nightly` (scheduled daily), `fixtures` (deterministic, no Docker) |
-| `challenge.primitive` | Cipher under test (e.g. `Speck-32/64`, `AES-128`, `Ascon`) |
-| `challenge.primitive_family` | Cipher family (`ARX`, `word_based_SPN`, `bit_based_SPN`, `Feistel`, `permutation`, …) |
-| `challenge.goal` | `find_one_trail`, `prove_bound`, `enumerate_trails`, `estimate_probability`, … |
-| `challenge.analysis` | `differential`, `linear`, `impossible_differential`, … |
-| `challenge.model_family` | `SAT`, `SMT`, `MILP`, `CP_MiniZinc`, `hybrid` |
-| `challenge.difficulty` | `tutorial`, `benchmark`, `boundary`, `open_challenge` |
-| `challenge.parameters` | Cipher parameters (`number_of_rounds`, `block_bit_size`, `key_bit_size`, …) |
+| `tier` | `smoke` (runs on every push to main), `nightly` (scheduled daily), `fixture` (deterministic, no Docker) |
+| `primitive` | Cipher under test (e.g. `Speck-32/64`, `AES-128`, `Ascon`) |
+| `primitive_family` | Cipher family — must be one of: `ARX`, `word_based_SPN`, `bit_based_SPN`, `Feistel`, `permutation`, `hash_component` |
+| `goal` | Cryptanalytic goal — must be one of: `find_one_trail`, `prove_bound`, `enumerate_trails`, `estimate_probability`, `key_recovery`, `hash_collision` |
+| `analysis` | Analysis type — must be one of: `differential`, `linear`, `differential_linear`, `rotational_xor`, `impossible_differential`, `integral` |
+| `parameters` | Cipher parameters (`number_of_rounds`, `block_bit_size`, `key_bit_size`, `state_bit_size`, …) |
+| `tags` | Free-form labels (e.g. `["smoke", "docker", "claasp"]`) |
+| `execution.runner` | `docker` or `synthetic` |
 | `execution.solver` | Solver name or `all_available` to sweep every installed solver |
-| `execution.timeout_seconds` | Wall-clock timeout for the entire Docker run |
-| `execution.task.kind` | Worker task (`claasp_xor_differential_find_one`, `claasp_xor_differential_find_lowest_weight`, …) |
+| `execution.timeout_seconds` | Wall-clock timeout for the entire Docker container |
+| `execution.solver_timeout_seconds` | Per-solver time limit passed into CLAASP (e.g. CP `timelimit`, or SIGALRM for SAT/MILP/SMT) |
+| `execution.kind` | Worker task — must be one of the values in `TAXONOMY["kind"]` in `taxonomy.py` |
+| `execution.solver_families` | Solver families to include (e.g. `["sat", "smt", "milp", "cp"]`) |
+| `execution.solver_source` | `external` or `internal` |
+| `execution.expected_status` | Expected result status (`sat`, `unsat`, `optimum`, …) |
+
+All controlled-vocabulary fields are validated on load against the lists in [`claasp_bench/taxonomy.py`](claasp_bench/taxonomy.py). `primitive` is validated against the `PRIMITIVES` list in the same file — extend it when adding benchmarks for new ciphers.
+
+> **Note:** `model_family` (e.g. `SAT`, `MILP`, `CP_MiniZinc`, `hybrid`) is not stored in benchmark manifests — it is derived at runtime from the actual solver family used and written into each result record for display and filtering on the dashboard.
 
 ---
 
@@ -49,9 +57,9 @@ Every benchmark JSON file must follow this pattern:
 
 All segments are lowercase and separated by underscores. The params segment uses letter-prefixed numbers concatenated without internal separators: `r5b32k64`, `r2s384`, `r3b64k80w1`.
 
-**Task keyword mapping to `challenge.goal`:**
+**Task keyword mapping to `goal`:**
 
-| Filename task | JSON `challenge.goal` |
+| Filename task | JSON `goal` |
 |---|---|
 | `find_one` | `find_one_trail` |
 | `find_optimal` | `prove_bound` |
@@ -85,45 +93,36 @@ Create a JSON file in the appropriate tier directory:
 - `benchmarks/nightly/` — runs on the daily schedule (longer runs OK)
 - `benchmarks/fixtures/` — deterministic synthetic fixtures (no Docker, used for validation)
 
-### Example: new Speck differential find-one benchmark
+### Example: Speck differential find-one, all solver families
 
-Create `benchmarks/smoke/speck_differential_find_one_r3b32k64_sat.json`:
+Create `benchmarks/smoke/speck_differential_find_one_r3b32k64_all_models.json`:
 
 ```json
 {
-  "id": "smoke_speck_differential_find_one_r3b32k64_sat",
+  "id": "smoke_speck_xor_differential_find_one_r3_all_models",
   "tier": "smoke",
-  "challenge": {
-    "id": "speck32_64_r3_xor_diff_find_one",
-    "name": "Speck-32/64 XOR differential find-one (SAT)",
-    "primitive": "Speck-32/64",
-    "primitive_family": "ARX",
-    "goal": "find_one_trail",
-    "analysis": "differential",
-    "model_family": "SAT",
-    "difficulty": "tutorial",
-    "parameters": {
-      "number_of_rounds": 3,
-      "block_bit_size": 32,
-      "key_bit_size": 64
-    },
-    "tags": ["smoke", "docker", "claasp", "speck"]
+  "primitive": "Speck-32/64",
+  "primitive_family": "ARX",
+  "goal": "find_one_trail",
+  "analysis": "differential",
+  "parameters": {
+    "number_of_rounds": 3,
+    "block_bit_size": 32,
+    "key_bit_size": 64
   },
+  "tags": ["smoke", "docker", "claasp", "speck"],
   "execution": {
     "runner": "docker",
     "solver": "all_available",
     "claasp_image": "tiicrc/claasp-base:latest",
     "timeout_seconds": 300,
+    "memory_mb": 2048,
     "expected_status": "sat",
-    "task": {
-      "kind": "claasp_xor_differential_find_one",
-      "claasp_method_name": "find_one_xor_differential_trail",
-      "status": "sat",
-      "available_only": true,
-      "solver_families": ["sat", "smt", "milp", "cp"],
-      "solver_source": "external",
-      "solver_timeout_seconds": 30
-    }
+    "kind": "claasp_xor_differential_find_one",
+    "available_only": true,
+    "solver_families": ["sat", "smt", "milp", "cp"],
+    "solver_source": "external",
+    "solver_timeout_seconds": 30
   }
 }
 ```
@@ -205,9 +204,10 @@ Pull requests and non-`main` branch pushes generate a preview artifact instead.
 
 Each result record contains:
 
-- **Taxonomy**: primitive, primitive family, goal, analysis, model family, difficulty
+- **Primitive metadata**: `primitive`, `primitive_family`, `goal`, `analysis`
 - **Cipher**: CLAASP cipher ID, parameter values, component count
 - **Execution**: runner, solver, image, timeout, observed thread count
+- **Model family**: derived from the actual solver used (e.g. `SAT`, `MILP`, `CP_MiniZinc`); written per result, not stored in the manifest
 - **Timing**: wall time, CPU time, build time, solve time
 - **Resources**: peak memory (MB)
 - **Model**: variable count, constraint/clause count, file size

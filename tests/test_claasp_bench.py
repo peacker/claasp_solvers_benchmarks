@@ -7,7 +7,7 @@ from pathlib import Path
 from claasp_bench.cli import main
 from claasp_bench.loader import BENCHMARK_FILE_NAME_RE, check_file_names, load_benchmarks
 from claasp_bench.results import load_result_records
-from claasp_bench.taxonomy import TAXONOMY
+from claasp_bench.taxonomy import PRIMITIVES, TAXONOMY
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -74,9 +74,9 @@ class ClaaspBenchTests(unittest.TestCase):
     def test_fixture_manifests_cover_representative_taxonomy(self) -> None:
         benchmarks = load_benchmarks(ROOT / "benchmarks" / "fixtures")
         self.assertGreaterEqual(len(benchmarks), 4)
-        families = {benchmark.challenge.primitive_family for benchmark in benchmarks}
-        goals = {benchmark.challenge.goal for benchmark in benchmarks}
-        analyses = {benchmark.challenge.analysis for benchmark in benchmarks}
+        families = {benchmark.primitive_family for benchmark in benchmarks}
+        goals = {benchmark.goal for benchmark in benchmarks}
+        analyses = {benchmark.analysis for benchmark in benchmarks}
         self.assertIn("ARX", families)
         self.assertIn("bit_based_SPN", families)
         self.assertIn("word_based_SPN", families)
@@ -91,7 +91,28 @@ class ClaaspBenchTests(unittest.TestCase):
         self.assertEqual(len(TAXONOMY["goal"]), 6)
         self.assertEqual(len(TAXONOMY["primitive_family"]), 6)
         self.assertEqual(len(TAXONOMY["analysis"]), 6)
-        self.assertEqual(len(TAXONOMY["model_family"]), 6)
+
+    def test_benchmark_fields_use_allowed_values(self) -> None:
+        """CI validation: every benchmark JSON uses only taxonomy-approved values."""
+        benchmarks = load_benchmarks(ROOT / "benchmarks")
+        for b in benchmarks:
+            ctx = b.source_path or b.id
+            with self.subTest(benchmark=ctx):
+                self.assertIn(
+                    b.primitive, PRIMITIVES,
+                    f"{ctx}: unknown primitive {b.primitive!r} — add it to PRIMITIVES in taxonomy.py",
+                )
+                self.assertIn(b.primitive_family, TAXONOMY["primitive_family"])
+                self.assertIn(b.goal, TAXONOMY["goal"])
+                self.assertIn(b.analysis, TAXONOMY["analysis"])
+                self.assertIn(b.execution.runner, TAXONOMY["runner"])
+                kind = b.execution.task.get("kind", "claasp_import_check")
+                self.assertIn(
+                    kind, TAXONOMY["kind"],
+                    f"{ctx}: unknown kind {kind!r} — add it to TAXONOMY['kind'] in taxonomy.py",
+                )
+                for fam in b.execution.task.get("solver_families", []):
+                    self.assertIn(fam, TAXONOMY["solver_family"])
 
     def test_run_report_and_site_generation(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

@@ -254,10 +254,10 @@ def _run_claasp_import_check(benchmark: Any) -> dict[str, Any]:
 
 def _run_claasp_cipher_metadata(benchmark: Any) -> dict[str, Any]:
     task = benchmark.execution.task
-    parameters = dict(benchmark.challenge.parameters)
+    parameters = dict(benchmark.parameters)
     parameters.update(task.get("cipher_parameters", {}))
     build_started = time.perf_counter()
-    cipher = _instantiate_cipher(benchmark.challenge.primitive, parameters)
+    cipher = _instantiate_cipher(benchmark.primitive, parameters)
     build_time = round(time.perf_counter() - build_started, 6)
     return {
         "cipher": _cipher_metadata(cipher, parameters),
@@ -363,10 +363,10 @@ def _solver_metadata_for(benchmark: Any, solver_name: str, solver_family: str | 
 def _run_claasp_sat_xor_differential_find_one(benchmark: Any, solver_name: str) -> dict[str, Any]:
     from claasp.cipher_modules.models.sat.sat_models.sat_xor_differential_model import SatXorDifferentialModel
 
-    parameters = dict(benchmark.challenge.parameters)
+    parameters = dict(benchmark.parameters)
     parameters.update(benchmark.execution.task.get("cipher_parameters", {}))
     cipher_start = time.perf_counter()
-    cipher = _instantiate_cipher(benchmark.challenge.primitive, parameters)
+    cipher = _instantiate_cipher(benchmark.primitive, parameters)
     cipher_build_time = round(time.perf_counter() - cipher_start, 6)
     model = SatXorDifferentialModel(cipher)
     solution = model.find_one_xor_differential_trail(solver_name=solver_name)
@@ -402,11 +402,11 @@ def _run_claasp_sat_xor_differential_enumerate_fixed_weight(
 ) -> dict[str, Any]:
     from claasp.cipher_modules.models.sat.sat_models.sat_xor_differential_model import SatXorDifferentialModel
 
-    parameters = dict(benchmark.challenge.parameters)
+    parameters = dict(benchmark.parameters)
     parameters.update(benchmark.execution.task.get("cipher_parameters", {}))
     fixed_weight = int(benchmark.execution.task.get("fixed_weight", parameters.get("weight", 0)))
     cipher_start = time.perf_counter()
-    cipher = _instantiate_cipher(benchmark.challenge.primitive, parameters)
+    cipher = _instantiate_cipher(benchmark.primitive, parameters)
     cipher_build_time = round(time.perf_counter() - cipher_start, 6)
     model = SatXorDifferentialModel(cipher)
     started = time.perf_counter()
@@ -495,10 +495,10 @@ def _run_find_one_with_model(
     method_name: str,
     **kwargs: Any,
 ) -> dict[str, Any]:
-    parameters = dict(benchmark.challenge.parameters)
+    parameters = dict(benchmark.parameters)
     parameters.update(benchmark.execution.task.get("cipher_parameters", {}))
     cipher_start = time.perf_counter()
-    cipher = _instantiate_cipher(benchmark.challenge.primitive, parameters)
+    cipher = _instantiate_cipher(benchmark.primitive, parameters)
     cipher_build_time = round(time.perf_counter() - cipher_start, 6)
     model = model_class(cipher)
     call_start = time.perf_counter()
@@ -549,11 +549,11 @@ def _run_claasp_xor_differential_enumerate_fixed_weight(
 ) -> dict[str, Any]:
     model_class, class_name = _model_class_for_family(solver_family)
     method_name = _method_name("claasp_xor_differential_enumerate_fixed_weight", solver_family)
-    parameters = dict(benchmark.challenge.parameters)
+    parameters = dict(benchmark.parameters)
     parameters.update(benchmark.execution.task.get("cipher_parameters", {}))
     fixed_weight = int(benchmark.execution.task.get("fixed_weight", parameters.get("weight", 0)))
     cipher_start = time.perf_counter()
-    cipher = _instantiate_cipher(benchmark.challenge.primitive, parameters)
+    cipher = _instantiate_cipher(benchmark.primitive, parameters)
     cipher_build_time = round(time.perf_counter() - cipher_start, 6)
     model = model_class(cipher)
     kwargs: dict[str, Any] = {}
@@ -613,10 +613,10 @@ def _run_claasp_xor_differential_find_lowest_weight(
 ) -> dict[str, Any]:
     model_class, class_name = _model_class_for_family(solver_family)
     method_name = _method_name("claasp_xor_differential_find_lowest_weight", solver_family)
-    parameters = dict(benchmark.challenge.parameters)
+    parameters = dict(benchmark.parameters)
     parameters.update(benchmark.execution.task.get("cipher_parameters", {}))
     cipher_start = time.perf_counter()
-    cipher = _instantiate_cipher(benchmark.challenge.primitive, parameters)
+    cipher = _instantiate_cipher(benchmark.primitive, parameters)
     cipher_build_time = round(time.perf_counter() - cipher_start, 6)
     model = model_class(cipher)
     kwargs: dict[str, Any] = {}
@@ -659,10 +659,10 @@ def _linear_solver_kwargs(benchmark: Any, solver_family: str | None) -> dict[str
 def _run_claasp_xor_linear_find_one(benchmark: Any, solver_name: str, solver_family: str | None) -> dict[str, Any]:
     model_class, class_name = _linear_model_class_for_family(solver_family)
     method_name = _method_name("claasp_xor_linear_find_one", solver_family)
-    parameters = dict(benchmark.challenge.parameters)
+    parameters = dict(benchmark.parameters)
     parameters.update(benchmark.execution.task.get("cipher_parameters", {}))
     cipher_start = time.perf_counter()
-    cipher = _instantiate_cipher(benchmark.challenge.primitive, parameters)
+    cipher = _instantiate_cipher(benchmark.primitive, parameters)
     cipher_build_time = round(time.perf_counter() - cipher_start, 6)
     model = model_class(cipher)
     solution = model.find_one_xor_linear_trail(solver_name=solver_name, **_linear_solver_kwargs(benchmark, solver_family))
@@ -696,11 +696,11 @@ def _run_claasp_xor_linear_enumerate_fixed_weight(
 ) -> dict[str, Any]:
     model_class, class_name = _linear_model_class_for_family(solver_family)
     method_name = _method_name("claasp_xor_linear_enumerate_fixed_weight", solver_family)
-    parameters = dict(benchmark.challenge.parameters)
+    parameters = dict(benchmark.parameters)
     parameters.update(benchmark.execution.task.get("cipher_parameters", {}))
     fixed_weight = int(benchmark.execution.task.get("fixed_weight", parameters.get("weight", 0)))
     cipher_start = time.perf_counter()
-    cipher = _instantiate_cipher(benchmark.challenge.primitive, parameters)
+    cipher = _instantiate_cipher(benchmark.primitive, parameters)
     cipher_build_time = round(time.perf_counter() - cipher_start, 6)
     model = model_class(cipher)
     started = time.perf_counter()
@@ -761,10 +761,10 @@ def _run_claasp_xor_linear_find_lowest_weight(
 ) -> dict[str, Any]:
     model_class, class_name = _linear_model_class_for_family(solver_family)
     method_name = _method_name("claasp_xor_linear_find_lowest_weight", solver_family)
-    parameters = dict(benchmark.challenge.parameters)
+    parameters = dict(benchmark.parameters)
     parameters.update(benchmark.execution.task.get("cipher_parameters", {}))
     cipher_start = time.perf_counter()
-    cipher = _instantiate_cipher(benchmark.challenge.primitive, parameters)
+    cipher = _instantiate_cipher(benchmark.primitive, parameters)
     cipher_build_time = round(time.perf_counter() - cipher_start, 6)
     model = model_class(cipher)
     solution = model.find_lowest_weight_xor_linear_trail(
@@ -798,9 +798,7 @@ def _run_claasp_xor_linear_find_lowest_weight(
 
 def _available_solver_rows(benchmark: Any) -> list[dict[str, Any]]:
     families = benchmark.execution.task.get("solver_families")
-    family = benchmark.execution.task.get("solver_family") or MODEL_FAMILY_TO_SOLVER_FAMILY.get(
-        benchmark.challenge.model_family
-    )
+    family = benchmark.execution.task.get("solver_family")
     try:
         from claasp.catalog import Catalog
 
@@ -965,9 +963,7 @@ def run_worker(manifest_path: Path, result_path: Path) -> int:
             solver_family = row.get("family")
             item = _base_result(benchmark)
             item["benchmark_id"] = f"{benchmark.id}_{solver_family}_{row.get('solver_name')}"
-            item["challenge"]["model_family"] = SOLVER_FAMILY_TO_MODEL_FAMILY.get(
-                solver_family, item["challenge"]["model_family"]
-            )
+            item["model_family"] = SOLVER_FAMILY_TO_MODEL_FAMILY.get(solver_family)
             item["execution"]["solver"] = row.get("solver_name")
             item["execution"]["claasp_method"] = _method_name(task_kind, solver_family)
             item["execution"]["machine"].update(_machine_metadata())
@@ -1055,7 +1051,7 @@ def run_worker(manifest_path: Path, result_path: Path) -> int:
             details, observed_threads = _monitor_solver(
                 benchmark,
                 benchmark.execution.solver,
-                MODEL_FAMILY_TO_SOLVER_FAMILY.get(benchmark.challenge.model_family),
+                (task.get("solver_families") or [None])[0],
                 task.get("solver_timeout_seconds"),
             )
             details["observed_threads"] = observed_threads
@@ -1070,7 +1066,7 @@ def run_worker(manifest_path: Path, result_path: Path) -> int:
             details, observed_threads = _monitor_solver(
                 benchmark,
                 benchmark.execution.solver,
-                MODEL_FAMILY_TO_SOLVER_FAMILY.get(benchmark.challenge.model_family, "sat"),
+                (task.get("solver_families") or ["sat"])[0],
                 task.get("solver_timeout_seconds"),
             )
             details["observed_threads"] = observed_threads
@@ -1078,14 +1074,14 @@ def run_worker(manifest_path: Path, result_path: Path) -> int:
             details = _run_synthetic(task)
         else:
             raise ValueError(f"unsupported worker task kind: {task_kind}")
-        result["status"] = task.get("status", benchmark.execution.expected_status or "sat")
+        result["status"] = benchmark.execution.expected_status or "sat"
         if isinstance(details, dict):
             _apply_details(result, details)
             result["solver_output"].update(
                 _solver_metadata_for(
                     benchmark,
                     benchmark.execution.solver,
-                    MODEL_FAMILY_TO_SOLVER_FAMILY.get(result["challenge"].get("model_family")),
+                    (task.get("solver_families") or [None])[0],
                 )
             )
         result["model"].update(task.get("model", {}))
@@ -1099,9 +1095,7 @@ def run_worker(manifest_path: Path, result_path: Path) -> int:
         for row in rows:
             item = copy.deepcopy(result)
             item["benchmark_id"] = f"{benchmark.id}_{row.get('family')}_{row.get('solver_name')}"
-            item["challenge"]["model_family"] = SOLVER_FAMILY_TO_MODEL_FAMILY.get(
-                row.get("family"), item["challenge"]["model_family"]
-            )
+            item["model_family"] = SOLVER_FAMILY_TO_MODEL_FAMILY.get(row.get("family"))
             item["execution"]["solver"] = row.get("solver_name")
             item["execution"]["claasp_method"] = _method_name(task_kind, row.get("family"))
             item["solver_output"].update(

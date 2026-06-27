@@ -61,10 +61,10 @@ def summarize(records: list[dict[str, Any]]) -> dict[str, Any]:
         default=None,
     )
     grouped: dict[str, dict[str, Any]] = {}
-    for field_name in ["primitive", "primitive_family", "goal", "analysis", "model_family", "solver", "difficulty"]:
+    for field_name in ["primitive", "primitive_family", "goal", "analysis", "model_family", "solver"]:
         buckets: dict[str, list[dict[str, Any]]] = defaultdict(list)
         for record in records:
-            key = record["execution"].get("solver") if field_name == "solver" else record["challenge"].get(field_name)
+            key = record["execution"].get("solver") if field_name == "solver" else record.get(field_name)
             buckets[str(key)].append(record)
         grouped[field_name] = {
             key: {
