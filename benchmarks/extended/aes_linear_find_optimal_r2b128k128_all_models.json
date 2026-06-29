@@ -1,0 +1,39 @@
+{
+  "analysis": "linear",
+  "execution": {
+    "available_only": true,
+    "claasp_image": "tiicrc/claasp-base:latest",
+    "expected_status": "sat",
+    "kind": "claasp_xor_linear_find_lowest_weight",
+    "memory_mb": 4096,
+    "runner": "docker",
+    "solver": "all_available",
+    "solver_families": [
+      "sat",
+      "smt",
+      "milp",
+      "cp"
+    ],
+    "solver_source": "external",
+    "solver_timeout_seconds": 300,
+    "timeout_seconds": 300
+  },
+  "goal": "prove_bound",
+  "id": "extended_aes_xor_linear_find_optimal_all_models",
+  "parameters": {
+    "block_bit_size": 128,
+    "key_bit_size": 128,
+    "number_of_rounds": 2
+  },
+  "primitive": "AES-128",
+  "primitive_family": "word_based_SPN",
+  "tags": [
+    "extended",
+    "docker",
+    "claasp",
+    "aes",
+    "linear",
+    "optimal"
+  ],
+  "tier": "extended"
+}
