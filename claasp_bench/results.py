@@ -28,22 +28,31 @@ def append_jsonl(path: Path, records: Iterable[dict[str, Any]]) -> None:
 
 
 def load_result_records(path: Path) -> list[dict[str, Any]]:
+    from .schema import SchemaError
     files = [path] if path.is_file() else sorted(path.rglob("*.jsonl")) + sorted(path.rglob("*.json"))
     records: list[dict[str, Any]] = []
     for file_path in files:
         if file_path.suffix == ".jsonl":
             with file_path.open("r", encoding="utf-8") as handle:
-                for line in handle:
+                for lineno, line in enumerate(handle, 1):
                     if line.strip():
                         record = json.loads(line)
-                        validate_result(record)
+                        try:
+                            validate_result(record)
+                        except SchemaError as exc:
+                            print(f"WARNING: skipping invalid record in {file_path}:{lineno}: {exc}")
+                            continue
                         records.append(record)
         elif file_path.name != "summary.json":
             with file_path.open("r", encoding="utf-8") as handle:
                 data = json.load(handle)
             items = data if isinstance(data, list) else [data]
             for record in items:
-                validate_result(record)
+                try:
+                    validate_result(record)
+                except SchemaError as exc:
+                    print(f"WARNING: skipping invalid record in {file_path}: {exc}")
+                    continue
                 records.append(record)
     return records
 

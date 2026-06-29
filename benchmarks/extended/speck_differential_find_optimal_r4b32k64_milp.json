@@ -1,0 +1,35 @@
+{
+  "analysis": "differential",
+  "execution": {
+    "available_only": true,
+    "claasp_image": "tiicrc/claasp-base:latest",
+    "expected_status": "sat",
+    "kind": "claasp_xor_differential_find_lowest_weight",
+    "memory_mb": 8192,
+    "runner": "docker",
+    "solver": "all_available",
+    "solver_families": [
+      "milp"
+    ],
+    "solver_source": "external",
+    "solver_timeout_seconds": 300,
+    "timeout_seconds": 3600
+  },
+  "goal": "prove_bound",
+  "id": "extended_speck_xor_differential_find_optimal_milp",
+  "parameters": {
+    "block_bit_size": 32,
+    "key_bit_size": 64,
+    "number_of_rounds": 4
+  },
+  "primitive": "Speck-32/64",
+  "primitive_family": "ARX",
+  "tags": [
+    "extended",
+    "docker",
+    "claasp",
+    "milp",
+    "optimal"
+  ],
+  "tier": "extended"
+}

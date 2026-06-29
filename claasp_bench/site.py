@@ -25,7 +25,7 @@ HTML = """<!doctype html>
       <summary>About this dashboard</summary>
       <div class="site-about-body">
         <p>This dashboard reports automated cryptanalysis benchmarks run with <a href="https://github.com/Crypto-TII/claasp" target="_blank" rel="noopener">CLAASP</a> — a Python/Sage library for the algebraic analysis of symmetric cryptographic primitives. Each benchmark encodes a cryptanalytic challenge (finding XOR differential or linear trails, proving bounds, enumerating trails) for a specific cipher, then runs a full solver sweep comparing SAT, SMT, MILP, and CP (MiniZinc) backends.</p>
-        <p>Runs execute nightly via GitHub Actions inside a pinned Docker image. Each row records build time, solve time, peak memory, model size, and solver-specific metadata. Use the filters to slice by primitive, analysis, model family, solver, status, and duration — multiple values can be selected per filter.</p>
+        <p>Runs execute automatically via GitHub Actions inside a pinned Docker image. Each row records build time, solve time, peak memory, model size, and solver-specific metadata. Use the filters to slice by primitive, analysis, model family, solver, status, and duration — multiple values can be selected per filter.</p>
         <p>Source: <a href="https://github.com/peacker/claasp_solvers_benchmarks" target="_blank" rel="noopener">github.com/peacker/claasp_solvers_benchmarks</a></p>
       </div>
     </details>
@@ -455,7 +455,7 @@ const dimensions = [
   ["status", "Status", record => record.status],
 ];
 const columnDescriptions = {
-  tier: "Benchmark suite tier, such as smoke, nightly, or release.",
+  tier: "Benchmark suite tier, such as smoke or extended.",
   benchmark: "Stable run identifier emitted by the benchmark runner.",
   primitive: "Concrete cipher or primitive under test.",
   cipher_parameters: "Cipher parameters reported by CLAASP, such as rounds, block size, and key size.",
